@@ -54,8 +54,6 @@ P2P.buildNode = (genesis, peerId) => {
               enabled: true,
               list: [ // A list of bootstrap peers to connect to starting up the node
                 "/ip4/127.0.0.1/tcp/50699/p2p/Qma2jQt2d2dbNANmaWjwfe5MGd4B7Git9sdpQU4WBq6jVP",
-                '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
-                '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
               ],
             }
           }
