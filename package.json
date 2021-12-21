@@ -19,11 +19,10 @@
   "homepage": "https://github.com/JACKAL-DAO/JACKAL-Client#readme",
   "dependencies": {
     "@chainsafe/libp2p-noise": "^4.1.1",
+    "axios": "^0.24.0",
     "datastore-level": "^7.0.1",
     "dotenv": "^10.0.0",
-    "easyarguments": "^1.0.1",
     "express": "^4.17.1",
-    "filecoin.js": "^0.0.5-alpha",
     "libp2p": "^0.35.1",
     "libp2p-bootstrap": "^0.14.0",
     "libp2p-crypto": "^0.21.0",
