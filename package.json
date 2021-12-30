@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "The Jackal Client",
   "scripts": {
-    "start": "node src/interface.js",
+    "start": "node src/main.js",
     "start_genisis": "node src/server.js -k CAAS3wQwggJbAgEAAoGBALbqW8xqTrtfdVNbvrp2tsfWDj2tDg1y+y2mtPfaiqFtEUdeQ8I4ke3PAE1TsNsr4oNcmzHW3dM47UTwMehbcJm+QjmGX7Lf+vzVVPhR6TqY3XP24L4LOS+I9woAX5vXc2KA9b6M769/zXcphBKj3JHDEc1ji3G5BQbOLQK6hr/VAgMBAAECgYB12Sir2xI+xpHg0wtfN30r403pjsWvBJWwI+gUiEkpGAw53xHo4GmkvemD6JfZnbyixdd3lOf2XocAE4EUI1W3oWF4KVpJG5R4TYkvpApevL6+wDl82OFwtlIYESh2lvFlI2rbT+/ZXAfHwYDy8NIGxDyepSlLHplWEpE3s+AjQQJBAN2r+HnYRd2AXXw8OJu4SVQ7Mnlb5v1BIoxc2iysrr/QqqVlU71oRJm3rMjWkCGgXTlzmVkfNXmaUtJ4kzMt+UMCQQDTPeueHu9ZzKqWr84V4DdcUZLijLcgBcR50hKC46xkg2ir1kUCfJfvSzfXdTgYFHvMoP++UlU6P5qXpaDfxOUHAkAlSZgyZr7Z043mJ/sdtpIfKRYEdAEW+K3nDndkrGd4vJD34WOEqNVhRhQ6dF0qSt9jmp5g727/VYY5AS9BnKohAkAb4zTT7ymSJV7v/c2rPaqRWYOWvRT/+ULzAjTHat87dc2/wc3igihcwwVgQG1jYHDnlumsapot0m/KTWdro0bJAkAOE7V0pDa0m75MD7ke0VvjYgHl+USao4riMSkYSp+kH1UbMWYvfV/5m8PLtlJUT7d7YCydtOCezd83HEuBl3hk",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -30,6 +30,7 @@
     "libp2p-mdns": "^0.18.0",
     "libp2p-mplex": "^0.10.4",
     "libp2p-tcp": "^0.17.2",
+    "multer": "^1.4.4",
     "multiaddr": "^10.0.1",
     "multiformats": "^9.5.4",
     "peer-id": "^0.16.0",

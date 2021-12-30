@@ -1,7 +1,7 @@
 require("dotenv").config();
 const axios = require('axios');
 
-const RPC_ENDPOINT = 'http://172.17.0.2:7777/rpc/v0';
+const RPC_ENDPOINT = 'http://127.0.0.1:7777/rpc/v0';
 
 function postJSON(method, params = null) {
     return new Promise((resolve, reject) => {
@@ -14,8 +14,8 @@ function postJSON(method, params = null) {
                 id: 1,
                 params: params
             }
-        }).then((res) => {
-            resolve(res.data);
+        }).then((r) => {
+            resolve(r.data);
         }).catch((err) => {
             reject(err);
         });
@@ -50,23 +50,7 @@ FileCoin.version = () => {
 };
 
 
-function test() {
-    const fs = require('fs');
-    const path = require('path');
 
-   
-    FileCoin.wallet.balance().then((res) => {
-        console.log(res);
-    });
-    
-    FileCoin.client.import(path.join(__dirname, '..', "testimg.png")).then((res) => {
-        console.log(res);
-    });
-
-    
-
-}
 
 module.exports = FileCoin;
 
-test();
