@@ -1,4 +1,4 @@
-const filecoin = require("../src/interface");
+const filecoin = require("../../lotus_interface/interface");
 const express = require('express');
 const app = express();
 const port = 3000;
