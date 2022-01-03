@@ -46,15 +46,7 @@ function main() {
     app.get('/download', (req, res) => {
         let fname = req.query.file;
         if(fname) {
-            let readstream = fs.createReadStream(path.join(__dirname, "uploads", fname));
-
-            readstream.on('open', function () {
-                readstream.pipe(res);
-            });
-            
-            readstream.on('error', function(err) {
-                res.end(err);
-            });
+            res.sendFile(path.join(__dirname, "uploads", fname))
             return 0;
         }
 
