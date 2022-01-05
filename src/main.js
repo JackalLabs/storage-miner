@@ -1,4 +1,4 @@
-// const filecoin = require("../lotus_interface/interface.js");
+const filecoin = require("../../lotus_interface");
 const express = require('express');
 const app = express();
 const port = 3000;
@@ -18,6 +18,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 
+
 function handleUpload(req, res) {
 
     let f = req.file;
@@ -26,21 +27,28 @@ function handleUpload(req, res) {
 
     console.log(f);
 
-    res.sendStatus(200);
+    // res.sendStatus(200);
 
 
 
-    // filecoin.client.import(f.path).then((d) => {
-    //     return res.send(d);
-    // }).catch((d) => {
-    //     return res.send(d);
-    // });
+    filecoin.client.import(f.path).then((d) => {
+        return res.send(d);
+    }).catch((e) => {
+        return res.send(e);
+    });
 }
 
 function main() {
 
     app.post('/upload', upload.single('upload_file'), (req, res) => {
         return handleUpload(req, res);
+    });
+
+    app.get('/balance', (req, res) => {
+        filecoin.wallet.balance().then((d) => {
+            return res.send(d);
+        });
+        
     });
 
     app.get('/download', (req, res) => {
