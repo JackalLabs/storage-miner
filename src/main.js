@@ -25,17 +25,47 @@ function handleUpload(req, res) {
 
     console.log(f.path);
 
-    console.log(f);
+    let p = "\\mnt\\c" + f.path.substring(2);
+    p= p.replaceAll('\\', '/');
+    console.log(p);
 
-    // res.sendStatus(200);
+    filecoin.client.import(p).then((d) => {
+
+        console.log(d);
 
 
+        
+        filecoin.client.dealPieceCID(d.result.Root['/']).then((s) => {
+            // filecoin.client.calcCommP(p).then((s2) => {
+            //     console.log(s2);
+            // }).catch((e) => {
+            //     console.error(e);
+            // });
+            console.log(s);
+            let CID = s.result.PieceCID['/'];
+            console.log(CID);
 
-    filecoin.client.import(f.path).then((d) => {
-        return res.send(d);
+            filecoin.client.startDeal(d.result.Root['/'], "t3vooeg3synqqbbfibluumnke2dwqgrg4nfb5es2znh36yx4t7eoxtdy6phzmamq2qyenmfbnpzckth5ibympa", "t01000", /**s.result.PieceCID['/']*/ null, /**s.result.PayloadSize*/ 0, filecoin.utils.monthsToBlocks(6)).then((g) => {
+                return res.send(g);
+            }).catch((e) => {
+                console.error(e);
+                return res.send(e);
+            });
+
+        }).catch((e) => {
+
+            console.error(e);
+            return res.send(e);
+        });
+
+            
     }).catch((e) => {
+        console.error(e);
         return res.send(e);
     });
+
+        
+
 }
 
 function main() {
@@ -47,6 +77,13 @@ function main() {
     app.get('/balance', (req, res) => {
         filecoin.wallet.balance().then((d) => {
             return res.send(d);
+        });
+        
+    });
+
+    app.get('/listImports', (req, res) => {
+        filecoin.client.listImports().then((d) => {
+            return res.json(d);
         });
         
     });
