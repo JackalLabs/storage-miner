@@ -1,4 +1,4 @@
-const filecoin = require("../../lotus_interface");
+const filecoin = require("../../dingo");
 const express = require('express');
 const app = express();
 const port = 3000;
@@ -45,7 +45,7 @@ function handleUpload(req, res) {
             let CID = s.result.PieceCID['/'];
             console.log(CID);
 
-            filecoin.client.startDeal(d.result.Root['/'], "t3vooeg3synqqbbfibluumnke2dwqgrg4nfb5es2znh36yx4t7eoxtdy6phzmamq2qyenmfbnpzckth5ibympa", "t01000", /**s.result.PieceCID['/']*/ null, /**s.result.PayloadSize*/ 0, filecoin.utils.monthsToBlocks(6)).then((g) => {
+            filecoin.client.startDeal(d.result.Root['/'], "t3vooeg3synqqbbfibluumnke2dwqgrg4nfb5es2znh36yx4t7eoxtdy6phzmamq2qyenmfbnpzckth5ibympa", "t01000", s.result.PieceCID['/'], /**filecoin.utils.calculatePaddedSize(*/s.result.PayloadSize/**)*/, filecoin.utils.monthsToBlocks(6)).then((g) => {
                 return res.send(g);
             }).catch((e) => {
                 console.error(e);
