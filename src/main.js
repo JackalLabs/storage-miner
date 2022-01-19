@@ -19,16 +19,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 
-
 function handleUpload(req, res, ipfs) {
 
     let f = req.file;
 
-    console.log(f);
-
-    let p = "\\mnt\\c" + f.path.substring(2);
-    p= p.replaceAll('\\', '/');
-
+    let miners = ["t01000"];
     fs.readFile(f.path, (err, data) => {
         if(err) {
             return res.status(500).send(err);
@@ -36,28 +31,40 @@ function handleUpload(req, res, ipfs) {
 
         ipfs.add(data).then((cid) => {
     
-            filecoin.client.import(p).then((d) => {
+            filecoin.client.import(f.path).then((d) => {
                 filecoin.client.dealPieceCID(d.result.Root['/']).then((s) => {
-                    console.log(s);
                     let CID = s.result.PieceCID['/'];
-                    console.log(CID);
-        
-                    filecoin.client.startDeal(d.result.Root['/'], "t3vooeg3synqqbbfibluumnke2dwqgrg4nfb5es2znh36yx4t7eoxtdy6phzmamq2qyenmfbnpzckth5ibympa", "t01000", s.result.PieceCID['/'], /**filecoin.utils.calculatePaddedSize(*/s.result.PayloadSize/**)*/, filecoin.utils.monthsToBlocks(6)).then((g) => {
+
+                    let pad_size = filecoin.utils.calculatePaddedSize(s.result.PayloadSize);
+
+                    let turn = 0;
+                    let jsonRes = {cid: cid.path, filecoin: []};
+
+                    let sDeal = function () {
+                        filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6)).then((g) => {
                        
-                        g.cid = cid;
-                        return res.send(g);
-                        
-                    }).catch((e) => {
-                        console.error(e);
-                        return res.status(500).send(e);
-                    });
+                            let block = {miner: miners[turn], dealId: g.result['/'], dataId: CID};
+                            jsonRes.filecoin.push(block);
+
+                            turn += 1;
+
+                            if(turn < miners.length) {
+                                sDeal();
+                            }else{
+                                return res.send(jsonRes);
+                            }
+                            
+                        }).catch((e) => {
+                            console.error(e);
+                            return res.status(500).send(e);
+                        });
+                    } 
+                    sDeal();
         
                 }).catch((e) => {
-        
                     console.error(e);
                     return res.status(500).send(e);
                 });
-        
                     
             }).catch((e) => {
                 console.error(e);
@@ -78,17 +85,31 @@ function startEndPoints(ipfs) {
     });
 
     app.get('/balance', (req, res) => {
-        filecoin.wallet.balance().then((d) => {
-            return res.send(d);
+        filecoin.wallet.defaultAddress().then((address) => {
+            filecoin.wallet.balance(address.result).then((d) => {
+                let b = d.result;
+                let bal = parseFloat(b) / 1000000000000000000;
+                return res.json({FILBalance: bal});
+            });
         });
-        
     });
 
     app.get('/listImports', (req, res) => {
         filecoin.client.listImports().then((d) => {
             return res.json(d);
         });
-        
+    });
+
+    app.get('/listDeals', (req, res) => {
+        filecoin.client.listDeals().then((d) => {
+            return res.json(d);
+        });
+    });
+
+    app.get('/lotus_version', (req, res) => {
+        filecoin.version().then((d) => {
+            return res.json(d.result);
+        });
     });
 
     app.get('/download', (req, res) => {
@@ -98,7 +119,6 @@ function startEndPoints(ipfs) {
             const stream = ipfs.cat(fname);
                 
             let f = function () {
-
                 return new Promise(async (resolve, reject) => {
                     let buf = [];
                     for await (const chunk of stream) {
@@ -106,8 +126,6 @@ function startEndPoints(ipfs) {
                     }
                     resolve(buf);
                 });
-                
-                
             }
 
             f().then((buffer) => {
@@ -128,7 +146,13 @@ function startEndPoints(ipfs) {
         
     });
 
-    app.get('/', (req, res) => {
+    app.get('/docs', (req, res) => {
+
+        res.redirect('https://jackal-wiki.notion.site/JACKAL-API-576a08f446f0488589607c73bfb8552e');
+
+    });
+
+    app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
         
         let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
 
@@ -142,22 +166,30 @@ function startEndPoints(ipfs) {
 
     });
 
-    
-      
     app.listen(port, () => {
-        console.log(`JACKAL listening at http://localhost:${port}`);
+        let s1='    __   ______   ______   __  __   ______   __        ';
+        let s2='   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
+        let s3='  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
+        let s4=' /\\_____\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\ ';
+        let s5=' \\/_____/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/\\/_/ \\/_____/ ';
+
+        console.log(s1 + "\n" + s2 + "\n" + s3 + "\n" + s4 + "\n" + s5);
+
+        console.log(`\n\tnow listening at http://localhost:${port}`);
     });
 }
 
 function main() {
 
-    const ipfs = IPFS.create().then((ipfs) => {
-        startEndPoints(ipfs);
-    }).catch((error) => {
-        console.error(error);
-    });
+    IPFS.create().then((ipfs) => {
 
-    
+        startEndPoints(ipfs);
+
+    }).catch((error) => {
+
+        console.error(error);
+
+    });    
 
 }
 

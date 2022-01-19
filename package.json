@@ -21,6 +21,7 @@
     "@chainsafe/libp2p-noise": "^4.1.1",
     "axios": "^0.24.0",
     "datastore-level": "^7.0.1",
+    "dingojs": "^1.0.1",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "ipfs-core": "^0.13.0",
