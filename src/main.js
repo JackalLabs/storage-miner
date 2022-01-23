@@ -68,13 +68,11 @@ function handleUpload(req, res, ipfs) {
 
                     let cd = new CIDs(cid.path);
 
-                    let jsonRes = {cid: cd.toV1().toBaseEncodedString("base32"), filecoin: []};
+                    let jsonRes = {cid: cd.toV1().toBaseEncodedString("base32"), miners: miners, dataId: CID};
 
                     let sDeal = function () {
                         filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6)).then((g) => {
                        
-                            let block = {miner: miners[turn], dealId: g.result['/'], dataId: CID};
-                            jsonRes.filecoin.push(block);
 
                             turn += 1;
 
