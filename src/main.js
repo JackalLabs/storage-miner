@@ -5,7 +5,34 @@ const port = 3000;
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const IPFS = require('ipfs-core');
+const IPFS = require('ipfs-http-client');
+const CIDs = require('cids');
+const winston = require('winston');
+const format = winston.format;
+
+const { combine, timestamp, label, printf } = format;
+
+const myformat = combine(
+    format.timestamp({
+        format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    format.align(),
+    printf(info => `[${info.timestamp}] [${info.level}]: ${info.stack == null ? info.message.trim() : info.stack}`)
+);
+
+const logger = winston.createLogger({
+    level: 'info',
+    format: myformat,
+    defaultMeta: { service: 'user-service' },
+    transports: [
+      //
+      // - Write all logs with importance level of `error` or less to `error.log`
+      // - Write all logs with importance level of `info` or less to `combined.log`
+      //
+      new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'logs/combined.log' }),
+    ],
+  });
 
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
@@ -38,7 +65,10 @@ function handleUpload(req, res, ipfs) {
                     let pad_size = filecoin.utils.calculatePaddedSize(s.result.PayloadSize);
 
                     let turn = 0;
-                    let jsonRes = {cid: cid.path, filecoin: []};
+
+                    let cd = new CIDs(cid.path);
+
+                    let jsonRes = {cid: cd.toV1().toBaseEncodedString("base32"), filecoin: []};
 
                     let sDeal = function () {
                         filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6)).then((g) => {
@@ -55,24 +85,24 @@ function handleUpload(req, res, ipfs) {
                             }
                             
                         }).catch((e) => {
-                            console.error(e);
+                            logger.error(e);
                             return res.status(500).send(e);
                         });
                     } 
                     sDeal();
         
                 }).catch((e) => {
-                    console.error(e);
+                    logger.error(e);
                     return res.status(500).send(e);
                 });
                     
             }).catch((e) => {
-                console.error(e);
+                logger.error(e);
                 return res.status(500).send(e);
             });
     
         }).catch((err) => {
-            console.error(err);
+            logger.error(err);
             return res.status(500).send(err);
         });
     });
@@ -111,6 +141,10 @@ function startEndPoints(ipfs) {
             return res.json(d.result);
         });
     });
+
+    app.get('/status', (req, res) => {
+        return res.json({status: "online"});
+    })
 
     app.get('/download', (req, res) => {
 
@@ -173,23 +207,27 @@ function startEndPoints(ipfs) {
         let s4=' /\\_____\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\ ';
         let s5=' \\/_____/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/\\/_/ \\/_____/ ';
 
-        console.log(s1 + "\n" + s2 + "\n" + s3 + "\n" + s4 + "\n" + s5);
+        logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
 
-        console.log(`\n\tnow listening at http://localhost:${port}`);
+        logger.info(`\n\n\tnow listening at http://localhost:${port}`);
     });
 }
 
 function main() {
 
-    IPFS.create().then((ipfs) => {
+    if (process.env.NODE_ENV !== 'production') {
+        logger.add(new winston.transports.Console({
+          format: combine(
+                format.colorize(), 
+                myformat
+            ),
+        }));
+      }
 
-        startEndPoints(ipfs);
+    const ip = IPFS.create();
 
-    }).catch((error) => {
+    startEndPoints(ip);
 
-        console.error(error);
-
-    });    
 
 }
 
