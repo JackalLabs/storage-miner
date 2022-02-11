@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test</title>
+    <title>JACKAL Upload form</title>
 </head>
 <body>
     <form method="POST" action="/upload" enctype="multipart/form-data">
         <div>
-            <label>Select your profile picture:</label>
+            <label>Choose a file to upload (between 256b and 2kb):</label>
             <input type="file" name="upload_file" />
         </div>
+        </br>
         <div>
             <input type="submit" name="btn_upload" value="Upload" />
         </div>

@@ -1,138 +1,470 @@
 // const filecoin = require("../lotus_interface/interface.js");
 const express = require('express');
+const app = express();
+const port = process.env.PORT;
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const IPFS = require('ipfs-http-client');
+const CIDs = require('cids');
+const winston = require('winston');
+const format = winston.format;
+const {
+    combine,
+    printf
+} = format;
+const axios = require('axios');
 const CORS = require('cors');
+const {
+    EnigmaUtils,
+    Secp256k1Pen,
+    SigningCosmWasmClient,
+    pubkeyToAddress,
+    encodeSecp256k1Pubkey
+} = require("secretjs");
 
-// const storage = multer.diskStorage({
-//     destination: function (req, file, callback) {
-//         callback(null, path.join(__dirname, 'uploads'));
-//     },
-//     filename: function (req, file, callback) {
-//         callback(null, file.originalname);
-//     }
-// });
+var http = require('http');
+var https = require('https');
+var privateKey = fs.readFileSync('key.pem', 'utf8');
+var certificate = fs.readFileSync('cert.pem', 'utf8');
 
-// const upload = multer({ storage: storage });
-const app = express();
-const upload = multer();
-const port = 3000;
-const storage = path.join(__dirname, "uploads");
+var credentials = {
+    key: privateKey,
+    cert: certificate
+};
 
-const refCount = 3;
-const fakeRefs = [
-  {
-    name: '3.jpg',
-    cid: 1
-  },
-  {
-    name: '20211120_151515.txt.jkl',
-    cid: 2
-  },
-  {
-    name: 'test.pdf',
-    cid: 3
-  },
-];
-
-app.use(CORS());
-
-function handleUpload(file) {
-
-  /**
-   * Filecoin Secret Sauce
-   * Starts Here
-   */
-
-  const workingPath = `${storage}/${file.name}`;
-
-  fs.unlink(workingPath, (err) => {
-    if (err) console.log('No File Saved');
-  });
-
-  fs.writeFile(workingPath, file, (err) => {
-    if (err) throw err;
-  });
-
-  const linked = {
-    name: file.name,
-    cid: ++refCount
-  };
-
-  fakeRefs.push(linked);
-
-  // filecoin.client.import(file.path).then((d) => {
-  //   return res.send(d);
-  // }).catch((e) => {
-  //   return res.send(e);
-  // });
-
-  /**
-   * Filecoin Secret Sauce
-   * Ends Here
-   */
-
-  return linked.cid;
+const customFees = {
+    upload: {
+        amount: [{
+            amount: "2000000",
+            denom: "uscrt"
+        }],
+        gas: "2000000",
+    },
+    init: {
+        amount: [{
+            amount: "500000",
+            denom: "uscrt"
+        }],
+        gas: "500000",
+    },
+    exec: {
+        amount: [{
+            amount: "500000",
+            denom: "uscrt"
+        }],
+        gas: "500000",
+    },
+    send: {
+        amount: [{
+            amount: "80000",
+            denom: "uscrt"
+        }],
+        gas: "80000",
+    },
 }
 
-function handleDownlaod(res, cid) {
+const myformat = combine(
+    format.timestamp({
+        format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    format.align(),
+    printf(info => `[${info.timestamp}] [${info.level}]: ${info.stack == null ? info.message.trim() : info.stack}`)
+);
 
-  /**
-   * Filecoin Secret Sauce
-   * Starts Here
-   */
+const logger = winston.createLogger({
+    level: 'info',
+    format: myformat,
+    defaultMeta: {
+        service: 'user-service'
+    },
+    transports: [
 
-  const target = fakeRefs.filter(ref => ref.cid == cid)[0];
-  console.dir(target)
-  /**
-   * Filecoin Secret Sauce
-   * Ends Here
-   */
+        new winston.transports.File({
+            filename: 'logs/error.log',
+            level: 'error'
+        }),
+        new winston.transports.File({
+            filename: 'logs/combined.log'
+        }),
+    ],
+});
 
-  res.attachment(target.name);
-  res.setHeader('Access-Control-Expose-Headers', '*'); // Refine later
-  res.sendFile(target.name, { root: storage });
+const storage = multer.diskStorage({
+    destination: function (req, file, callback) {
+        callback(null, path.join(__dirname, 'uploads'));
+    },
+    filename: function (req, file, callback) {
+        callback(null, file.originalname);
+    }
+});
 
+const upload = multer({
+    storage: storage
+});
+
+
+function handleUpload(req, res, ipfs, secretjs, rwb) {
+
+    let f = req.file;
+
+    let miners = ["t01000"];
+
+    rwb[req.body.pkey] = {
+        address: req.body.address,
+        key: req.body.skey
+    };
+
+
+    fs.readFile(f.path, (err, data) => {
+        if (err) {
+            return res.status(500).send(err);
+        }
+
+
+
+        ipfs.add(data).then((cid) => {
+
+
+
+            let cd = new CIDs(cid.path);
+            let jsonRes = {
+                cid: cd.toV1().toBaseEncodedString("base32"),
+                miners: miners,
+                dataId: "empty",
+                node: process.env.PUBLIC_IP
+            };
+
+            getTopNodes(secretjs, 20).then((data) => {
+                for (const i of data) {
+                    axios.get('https://' + i + '/pinipfs?cid=' + cd.toV1().toBaseEncodedString("base32")).catch((err) => {
+                        logger.debug("Couldn't reach the external node.");
+                    });
+                }
+            });
+            return res.send(jsonRes);
+
+            filecoin.client.import(f.path).then((d) => {
+                filecoin.client.dealPieceCID(d.result.Root['/']).then((s) => {
+                    let CID = s.result.PieceCID['/'];
+
+                    let pad_size = filecoin.utils.calculatePaddedSize(s.result.PayloadSize);
+
+                    let turn = 0;
+
+
+                    let jsonRes = {
+                        cid: cd.toV1().toBaseEncodedString("base32"),
+                        miners: miners,
+                        dataId: CID
+                    };
+
+                    let sDeal = function () {
+                        filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6)).then((g) => {
+
+
+                            turn += 1;
+
+                            if (turn < miners.length) {
+                                sDeal();
+                            } else {
+                                return res.send(jsonRes);
+                            }
+
+                        }).catch((e) => {
+                            logger.error(e);
+                            return res.status(500).send(e);
+                        });
+                    }
+                    sDeal();
+
+                }).catch((e) => {
+                    logger.error(e);
+                    return res.status(500).send(e);
+                });
+
+            }).catch((e) => {
+                logger.error(e);
+                return res.status(500).send(e);
+            });
+
+        }).catch((err) => {
+            logger.error(err);
+            return res.status(500).send(err);
+        });
+    });
+}
+
+function pinIPFS(ipfs, cid) {
+    ipfs.pin.add(cid);
+}
+
+function handleDownload(req, res, ipfs) {
+    let fname = req.query.cid;
+    let dataid = req.query.dataid;
+
+    if (fname) {
+        const stream = ipfs.cat(fname);
+
+        let f = function () {
+            return new Promise(async (resolve, reject) => {
+                let buf = [];
+                for await (const chunk of stream) {
+                    buf.push(chunk);
+                }
+                resolve(buf);
+            });
+        }
+
+        f().then((buffer) => {
+            for (c of buffer) {
+                res.write(c);
+            }
+            res.end();
+        });
+
+        return 0;
+    }
+
+    res.status(404).json({
+        code: 1400,
+        message: "Resource is not found on the JACKAL system. This is most likely because the data has not been pinned to any IPFS nodes, and it has not been pushed to Filecoin. If you know for sure it has been, please contact the JACKAL team."
+    });
+}
+
+function getTopNodes(secretjs, total) {
+    return new Promise((resolve, reject) => {
+        let msg = {
+            get_node_list: {
+                size: total
+            }
+        };
+        secretjs.queryContractSmart(process.env.CONTRACT, msg).then((res) => {
+            resolve(JSON.parse(Buffer.from(res.data, "base64").toString()));
+        });
+    })
+
+}
+
+function startEndPoints(ipfs, signingPen) {
+    let args = process.argv;
+
+
+    const pubkey = encodeSecp256k1Pubkey(signingPen.pubkey);
+    const accAddress = pubkeyToAddress(pubkey, 'secret');
+    const txEncryptionSeed = EnigmaUtils.GenerateNewSeed();
+
+    const secretjs = new SigningCosmWasmClient(
+        process.env.SECRET_REST_URL,
+        accAddress,
+        (signBytes) => signingPen.sign(signBytes),
+        txEncryptionSeed, customFees
+    );
+
+    if (args.includes("genesis")) {
+
+        let pip = process.env.PUBLIC_IP;
+        let port = process.env.PORT;
+
+        console.log(pip);
+        console.log(port);
+
+        let ip = process.env.PUBLIC_IP + ":" + process.env.PORT;
+        console.log(ip);
+        let msg = {
+            init_node: {
+                address: accAddress,
+                ip: ip
+            }
+        };
+        console.log(msg);
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => {}).catch((err) => {
+            console.log(err);
+        });
+    } else {
+
+
+        getTopNodes(secretjs, 10).then((data) => {
+            logger.info(JSON.stringify(data));
+        });
+
+    }
+
+    let reward_blocks = {};
+
+
+    app.use(CORS());
+
+    filecoin.endpoint = process.env.RPC_ENDPOINT;
+
+    app.post('finished_upload', (req, res) => {
+
+        let pkey = req.body.pkey;
+
+        let block = reward_blocks[pkey];
+
+
+        let msg = {
+            claim_reward: {
+                address: block.addr,
+                key: block.key,
+                path: pkey
+            }
+        };
+        console.log(msg);
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => {
+            delete reward_blocks[pkey];
+        }).catch((err) => {
+            console.log(err);
+        });
+    });
+
+    app.post('/upload', upload.single('upload_file'), (req, res) => {
+        return handleUpload(req, res, ipfs, secretjs, reward_blocks);
+    });
+
+    app.get('/pinipfs', (req, res) => {
+        pinIPFS(ipfs, req.query.cid);
+
+        return res.sendStatus(200);
+    });
+
+    app.get('/balance', (req, res) => {
+        filecoin.wallet.defaultAddress().then((address) => {
+            filecoin.wallet.balance(address.result).then((d) => {
+                let b = d.result;
+                let bal = parseFloat(b) / 1000000000000000000;
+                return res.json({
+                    code: 1000,
+                    FILBalance: bal
+                });
+            });
+        });
+    });
+
+    app.get('/listImports', (req, res) => {
+        filecoin.client.listImports().then((d) => {
+            d.code = 1000;
+            return res.json(d);
+        });
+    });
+
+    app.get('/listDeals', (req, res) => {
+        filecoin.client.listDeals().then((d) => {
+            d.code = 1000;
+            return res.json(d);
+        });
+    });
+
+    app.get('/lotus_version', (req, res) => {
+        filecoin.version().then((d) => {
+            d.result.code = 1000;
+            return res.json(d.result);
+        });
+    });
+
+    app.get('/status', (req, res) => {
+        return res.json({
+            code: 1000,
+            status: "online"
+        });
+    });
+
+    app.get('/ipfs', (req, res) => {
+        ipfs.swarm.addrs().then((data) => {
+            res.send(data);
+        });
+    });
+
+    app.get('/queryContract', (req, res) => {
+
+        let query = "e";
+        let txt = process.env.REST_API + '/wasm/contract/' + process.env.CONTRACT + '/query/' + query;
+
+
+        axios.get(txt).then((data) => {
+            res.send(data);
+        }).catch((err) => {
+            logger.error(err);
+            res.status(500).json({
+                code: 1501,
+                message: "Error querying contract for public data. Please try again later, the REST API provider could just be down."
+            });
+        })
+    });
+
+    app.get('/download', (req, res) => {
+
+        handleDownload(req, res, ipfs);
+
+        res.send({
+            fakeRefs
+        })
+
+        app.get('/docs', (req, res) => {
+
+            res.redirect('https://jackal-wiki.notion.site/JACKAL-API-576a08f446f0488589607c73bfb8552e');
+
+        });
+
+        app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
+
+            let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
+
+            readstream.on('open', function () {
+                readstream.pipe(res);
+            });
+
+            readstream.on('error', function (err) {
+                res.end(err);
+            });
+
+        });
+
+        let httpServer = http.createServer(app);
+
+        // httpsServer.listen(8080);
+        httpServer.listen(port, () => {
+            let s1 = '    __   ______   ______   __  __   ______   __        ';
+            let s2 = '   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
+            let s3 = '  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
+            let s4 = ' /\\_____\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\ ';
+            let s5 = ' \\/_____/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/\\/_/ \\/_____/ ';
+
+            logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
+
+            logger.info(`Now listening at https://localhost:${port}`);
+
+            logger.info(`Client's Secret address is ${accAddress}`);
+
+        });
+
+    });
 }
 
 function main() {
 
-  app.post('/upload', upload.single('upload_file'), (req, res) => {
-    console.log('upload hit');
-    const cid = handleUpload(req.file);
-    res.status(200);
-    res.send({ cid });
-  });
-
-  app.get('/download', (req, res) => {
-    console.log('download hit');
-    let cid = req.query.file;
-    if (cid) {
-      handleDownlaod(res, cid);
-    } else {
-      res.sendStatus(404);
+    if (process.env.NODE_ENV !== 'production') {
+        logger.add(new winston.transports.Console({
+            format: combine(
+                format.colorize(),
+                myformat
+            ),
+        }));
     }
-  });
 
-  app.get('/balance', (req, res) => {
-    filecoin.wallet.balance().then((d) => {
-      return res.send(d);
+
+    const node = IPFS.create("http://127.0.0.1:5001");
+
+
+    const mnemonic = process.env.MNEMONIC;
+    const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
+
+
+        startEndPoints(node, signingPen);
     });
-
-  });
-
-  // Remove/Edit Later
-  app.get('/', (req, res) => {
-
-    res.send({ fakeRefs })
-
-  });
-
-  app.listen(port, () => {
-    console.log(`JACKAL listening at http://localhost:${port}`);
-  });
-
 }
+
+
 
 main();
