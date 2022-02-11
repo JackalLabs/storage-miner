@@ -29,6 +29,7 @@ const {
 } = require("secretjs");
 
 var http = require('http');
+const { exit } = require('process');
 
 const customFees = {
     upload: {
@@ -278,6 +279,7 @@ function startEndPoints(ipfs, signingPen) {
         secretjs.execute(process.env.CONTRACT, msg).then((res) => { }).catch((err) => {
             console.log(err);
         });
+        exit();
     } else {
 
 
