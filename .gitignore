@@ -1,6 +1,9 @@
 src/uploads/
 .env
 
+key.pem
+cert.pem
+
 # Logs
 logs
 *.log

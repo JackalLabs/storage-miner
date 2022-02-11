@@ -4,7 +4,7 @@
   "description": "The Jackal Client",
   "scripts": {
     "start": "node src/main.js",
-    "start_genisis": "node src/server.js -k CAAS3wQwggJbAgEAAoGBALbqW8xqTrtfdVNbvrp2tsfWDj2tDg1y+y2mtPfaiqFtEUdeQ8I4ke3PAE1TsNsr4oNcmzHW3dM47UTwMehbcJm+QjmGX7Lf+vzVVPhR6TqY3XP24L4LOS+I9woAX5vXc2KA9b6M769/zXcphBKj3JHDEc1ji3G5BQbOLQK6hr/VAgMBAAECgYB12Sir2xI+xpHg0wtfN30r403pjsWvBJWwI+gUiEkpGAw53xHo4GmkvemD6JfZnbyixdd3lOf2XocAE4EUI1W3oWF4KVpJG5R4TYkvpApevL6+wDl82OFwtlIYESh2lvFlI2rbT+/ZXAfHwYDy8NIGxDyepSlLHplWEpE3s+AjQQJBAN2r+HnYRd2AXXw8OJu4SVQ7Mnlb5v1BIoxc2iysrr/QqqVlU71oRJm3rMjWkCGgXTlzmVkfNXmaUtJ4kzMt+UMCQQDTPeueHu9ZzKqWr84V4DdcUZLijLcgBcR50hKC46xkg2ir1kUCfJfvSzfXdTgYFHvMoP++UlU6P5qXpaDfxOUHAkAlSZgyZr7Z043mJ/sdtpIfKRYEdAEW+K3nDndkrGd4vJD34WOEqNVhRhQ6dF0qSt9jmp5g727/VYY5AS9BnKohAkAb4zTT7ymSJV7v/c2rPaqRWYOWvRT/+ULzAjTHat87dc2/wc3igihcwwVgQG1jYHDnlumsapot0m/KTWdro0bJAkAOE7V0pDa0m75MD7ke0VvjYgHl+USao4riMSkYSp+kH1UbMWYvfV/5m8PLtlJUT7d7YCydtOCezd83HEuBl3hk",
+    "start_genesis": "node src/main.js genesis",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,16 +17,21 @@
     "url": "https://github.com/JACKAL-DAO/JACKAL-Client/issues"
   },
   "homepage": "https://github.com/JACKAL-DAO/JACKAL-Client#readme",
+  "pkg": {
+    "assets": ["src/*", "src/**/*"]
+  },
   "dependencies": {
     "@chainsafe/libp2p-noise": "^4.1.1",
     "axios": "^0.24.0",
     "cids": "^1.1.9",
+    "cors": "^2.8.5",
     "datastore-level": "^7.0.1",
     "dingojs": "^1.0.1",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "ipfs-core": "^0.13.0",
     "ipfs-http-client": "^55.0.0",
+    "js-ipfs": "^0.0.301",
     "libp2p": "^0.35.1",
     "libp2p-bootstrap": "^0.14.0",
     "libp2p-crypto": "^0.21.0",
@@ -38,6 +43,7 @@
     "multiaddr": "^10.0.1",
     "multiformats": "^9.5.4",
     "peer-id": "^0.16.0",
+    "secretjs": "^0.17.5",
     "underscore": "^1.13.1",
     "winston": "^3.4.0"
   }

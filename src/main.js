@@ -1,7 +1,7 @@
 const filecoin = require("../../lotus_interface");
 const express = require('express');
 const app = express();
-const port = 3000;
+const port = process.env.PORT;
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -9,8 +9,36 @@ const IPFS = require('ipfs-http-client');
 const CIDs = require('cids');
 const winston = require('winston');
 const format = winston.format;
+const { combine, printf } = format;
+const axios = require('axios');
+const CORS = require('cors');
+const {EnigmaUtils, Secp256k1Pen, SigningCosmWasmClient, pubkeyToAddress, encodeSecp256k1Pubkey} = require("secretjs");
 
-const { combine, timestamp, label, printf } = format;
+var http = require('http');
+var https = require('https');
+var privateKey  = fs.readFileSync('key.pem', 'utf8');
+var certificate = fs.readFileSync('cert.pem', 'utf8');
+
+var credentials = {key: privateKey, cert: certificate};
+
+const customFees = {
+    upload: {
+        amount: [{ amount: "2000000", denom: "uscrt" }],
+        gas: "2000000",
+    },
+    init: {
+        amount: [{ amount: "500000", denom: "uscrt" }],
+        gas: "500000",
+    },
+    exec: {
+        amount: [{ amount: "500000", denom: "uscrt" }],
+        gas: "500000",
+    },
+    send: {
+        amount: [{ amount: "80000", denom: "uscrt" }],
+        gas: "80000",
+    },
+  }
 
 const myformat = combine(
     format.timestamp({
@@ -25,10 +53,7 @@ const logger = winston.createLogger({
     format: myformat,
     defaultMeta: { service: 'user-service' },
     transports: [
-      //
-      // - Write all logs with importance level of `error` or less to `error.log`
-      // - Write all logs with importance level of `info` or less to `combined.log`
-      //
+
       new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
       new winston.transports.File({ filename: 'logs/combined.log' }),
     ],
@@ -46,18 +71,38 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 
-function handleUpload(req, res, ipfs) {
+function handleUpload(req, res, ipfs, secretjs, rwb) {
 
     let f = req.file;
 
     let miners = ["t01000"];
+
+    rwb[req.body.pkey] = {address: req.body.address, key: req.body.skey};
+
+
     fs.readFile(f.path, (err, data) => {
         if(err) {
             return res.status(500).send(err);
         }
 
+        
+
         ipfs.add(data).then((cid) => {
+
+            
     
+            let cd = new CIDs(cid.path);
+            let jsonRes = {cid: cd.toV1().toBaseEncodedString("base32"), miners: miners, dataId: "empty", node: process.env.PUBLIC_IP};
+
+            getTopNodes(secretjs, 20).then((data) => {
+                for (const i of data) {
+                    axios.get('https://' + i + '/pinipfs?cid=' + cd.toV1().toBaseEncodedString("base32")).catch((err) => {
+                        logger.debug("Couldn't reach the external node.");
+                    });
+                }
+            });
+            return res.send(jsonRes);
+
             filecoin.client.import(f.path).then((d) => {
                 filecoin.client.dealPieceCID(d.result.Root['/']).then((s) => {
                     let CID = s.result.PieceCID['/'];
@@ -66,7 +111,6 @@ function handleUpload(req, res, ipfs) {
 
                     let turn = 0;
 
-                    let cd = new CIDs(cid.path);
 
                     let jsonRes = {cid: cd.toV1().toBaseEncodedString("base32"), miners: miners, dataId: CID};
 
@@ -106,47 +150,14 @@ function handleUpload(req, res, ipfs) {
     });
 }
 
-function startEndPoints(ipfs) {
+function pinIPFS(ipfs, cid) {
+    ipfs.pin.add(cid);
+}
 
-    app.post('/upload', upload.single('upload_file'), (req, res) => {
-        return handleUpload(req, res, ipfs);
-    });
+function handleDownload(req, res, ipfs) {
+    let fname = req.query.cid;
+    let dataid = req.query.dataid;
 
-    app.get('/balance', (req, res) => {
-        filecoin.wallet.defaultAddress().then((address) => {
-            filecoin.wallet.balance(address.result).then((d) => {
-                let b = d.result;
-                let bal = parseFloat(b) / 1000000000000000000;
-                return res.json({FILBalance: bal});
-            });
-        });
-    });
-
-    app.get('/listImports', (req, res) => {
-        filecoin.client.listImports().then((d) => {
-            return res.json(d);
-        });
-    });
-
-    app.get('/listDeals', (req, res) => {
-        filecoin.client.listDeals().then((d) => {
-            return res.json(d);
-        });
-    });
-
-    app.get('/lotus_version', (req, res) => {
-        filecoin.version().then((d) => {
-            return res.json(d.result);
-        });
-    });
-
-    app.get('/status', (req, res) => {
-        return res.json({status: "online"});
-    })
-
-    app.get('/download', (req, res) => {
-
-        let fname = req.query.file;
         if(fname) {
             const stream = ipfs.cat(fname);
                 
@@ -167,13 +178,153 @@ function startEndPoints(ipfs) {
                 res.end();
             });
             
-            
-
-            // res.sendFile(path.join(__dirname, "uploads", fname))
             return 0;
         }
 
-        res.sendStatus(404);
+        res.status(404).json({code: 1400, message: "Resource is not found on the JACKAL system. This is most likely because the data has not been pinned to any IPFS nodes, and it has not been pushed to Filecoin. If you know for sure it has been, please contact the JACKAL team."});
+}
+
+function getTopNodes(secretjs, total) {
+    return new Promise((resolve, reject) => {
+        let msg = { get_node_list: {size: total} };
+        secretjs.queryContractSmart(process.env.CONTRACT, msg).then((res) => {
+            resolve(JSON.parse(Buffer.from(res.data, "base64").toString()));
+        });
+    })
+    
+}
+
+function startEndPoints(ipfs, signingPen) {
+    let args = process.argv;
+    
+    
+    const pubkey = encodeSecp256k1Pubkey(signingPen.pubkey);
+    const accAddress = pubkeyToAddress(pubkey, 'secret');
+    const txEncryptionSeed = EnigmaUtils.GenerateNewSeed();
+
+    const secretjs = new SigningCosmWasmClient(
+        process.env.SECRET_REST_URL,
+        accAddress,
+        (signBytes) => signingPen.sign(signBytes),
+        txEncryptionSeed, customFees
+    );
+
+    if(args.includes("genesis")) {
+
+        let pip = process.env.PUBLIC_IP;
+        let port = process.env.PORT;
+
+        console.log(pip);
+        console.log(port);
+
+        let ip = process.env.PUBLIC_IP + ":" + process.env.PORT;
+        console.log(ip);
+        let msg = { init_node: {address: accAddress, ip: ip } };
+        console.log(msg);
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => {
+        }).catch((err) => {
+            console.log(err);
+        });
+    }else{
+        
+        
+        getTopNodes(secretjs, 10).then((data) => {
+            logger.info(JSON.stringify(data));
+        });
+
+    }
+
+    let reward_blocks = {};
+
+
+    app.use(CORS());
+
+    filecoin.endpoint = process.env.RPC_ENDPOINT;
+
+    app.post('finished_upload', (req, res) => {
+
+        let pkey = req.body.pkey;
+
+        let block = reward_blocks[pkey];
+        
+
+        let msg = { claim_reward: {address: block.addr, key: block.key, path: pkey} };
+        console.log(msg);
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => {
+            delete reward_blocks[pkey];
+        }).catch((err) => {
+            console.log(err);
+        });
+    });
+
+    app.post('/upload', upload.single('upload_file'), (req, res) => {
+        return handleUpload(req, res, ipfs, secretjs, reward_blocks);
+    });
+
+    app.get('/pinipfs', (req, res) => {
+        pinIPFS(ipfs, req.query.cid);
+
+        return res.sendStatus(200);
+    });
+
+    app.get('/balance', (req, res) => {
+        filecoin.wallet.defaultAddress().then((address) => {
+            filecoin.wallet.balance(address.result).then((d) => {
+                let b = d.result;
+                let bal = parseFloat(b) / 1000000000000000000;
+                return res.json({code: 1000, FILBalance: bal});
+            });
+        });
+    });
+
+    app.get('/listImports', (req, res) => {
+        filecoin.client.listImports().then((d) => {
+            d.code = 1000;
+            return res.json(d);
+        });
+    });
+
+    app.get('/listDeals', (req, res) => {
+        filecoin.client.listDeals().then((d) => {
+            d.code = 1000;
+            return res.json(d);
+        });
+    });
+
+    app.get('/lotus_version', (req, res) => {
+        filecoin.version().then((d) => {
+            d.result.code = 1000;
+            return res.json(d.result);
+        });
+    });
+
+    app.get('/status', (req, res) => {
+        return res.json({code: 1000, status: "online"});
+    });
+
+    app.get('/ipfs', (req, res) => {
+        ipfs.swarm.addrs().then((data) => {
+            res.send(data);
+        });
+    });
+
+    app.get('/queryContract', (req, res) => {
+
+        let query = "e";
+        let txt = process.env.REST_API + '/wasm/contract/' + process.env.CONTRACT + '/query/' + query;
+
+
+        axios.get(txt).then((data) => {
+            res.send(data);
+        }).catch((err) => {
+            logger.error(err);
+            res.status(500).json({code: 1501, message: "Error querying contract for public data. Please try again later, the REST API provider could just be down."});
+        })
+    });
+
+    app.get('/download', (req, res) => {
+
+        handleDownload(req, res, ipfs);
 
         
     });
@@ -185,7 +336,7 @@ function startEndPoints(ipfs) {
     });
 
     app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
-        
+
         let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
 
         readstream.on('open', function () {
@@ -198,7 +349,10 @@ function startEndPoints(ipfs) {
 
     });
 
-    app.listen(port, () => {
+    let httpServer = http.createServer(app);
+
+    // httpsServer.listen(8080);
+    httpServer.listen(port, () => {
         let s1='    __   ______   ______   __  __   ______   __        ';
         let s2='   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
         let s3='  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
@@ -207,8 +361,12 @@ function startEndPoints(ipfs) {
 
         logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
 
-        logger.info(`\n\n\tnow listening at http://localhost:${port}`);
+        logger.info(`Now listening at https://localhost:${port}`);
+
+        logger.info(`Client's Secret address is ${accAddress}`);
+
     });
+
 }
 
 function main() {
@@ -222,9 +380,25 @@ function main() {
         }));
       }
 
-    const ip = IPFS.create();
 
-    startEndPoints(ip);
+    const node = IPFS.create("http://127.0.0.1:5001");
+
+
+    const mnemonic = process.env.MNEMONIC;
+    const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
+        
+
+        startEndPoints(node, signingPen);
+    });
+    
+    
+
+    
+
+   
+  
+
+    
 
 
 }
