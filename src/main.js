@@ -1,4 +1,5 @@
 // const filecoin = require("../lotus_interface/interface.js");
+const dotenv = require('dotenv').config();
 const express = require('express');
 const app = express();
 const port = process.env.PORT;
@@ -9,12 +10,16 @@ const IPFS = require('ipfs-http-client');
 const CIDs = require('cids');
 const winston = require('winston');
 const format = winston.format;
+const filecoin = require("dingojs");
+
 const {
     combine,
     printf
 } = format;
+
 const axios = require('axios');
 const CORS = require('cors');
+
 const {
     EnigmaUtils,
     Secp256k1Pen,
@@ -239,8 +244,8 @@ function getTopNodes(secretjs, total) {
 }
 
 function startEndPoints(ipfs, signingPen) {
-    let args = process.argv;
 
+    let args = process.argv;
 
     const pubkey = encodeSecp256k1Pubkey(signingPen.pubkey);
     const accAddress = pubkeyToAddress(pubkey, 'secret');
@@ -270,7 +275,7 @@ function startEndPoints(ipfs, signingPen) {
             }
         };
         console.log(msg);
-        secretjs.execute(process.env.CONTRACT, msg).then((res) => {}).catch((err) => {
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => { }).catch((err) => {
             console.log(err);
         });
     } else {
@@ -391,47 +396,47 @@ function startEndPoints(ipfs, signingPen) {
 
         res.send({
             fakeRefs
-        })
+        });
+    });
 
-        app.get('/docs', (req, res) => {
+    app.get('/docs', (req, res) => {
 
-            res.redirect('https://jackal-wiki.notion.site/JACKAL-API-576a08f446f0488589607c73bfb8552e');
+        res.redirect('https://jackal-wiki.notion.site/JACKAL-API-576a08f446f0488589607c73bfb8552e');
 
+    });
+
+    app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
+
+        let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
+
+        readstream.on('open', function () {
+            readstream.pipe(res);
         });
 
-        app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
-
-            let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
-
-            readstream.on('open', function () {
-                readstream.pipe(res);
-            });
-
-            readstream.on('error', function (err) {
-                res.end(err);
-            });
-
-        });
-
-        let httpServer = http.createServer(app);
-
-        // httpsServer.listen(8080);
-        httpServer.listen(port, () => {
-            let s1 = '    __   ______   ______   __  __   ______   __        ';
-            let s2 = '   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
-            let s3 = '  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
-            let s4 = ' /\\_____\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\ ';
-            let s5 = ' \\/_____/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/\\/_/ \\/_____/ ';
-
-            logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
-
-            logger.info(`Now listening at https://localhost:${port}`);
-
-            logger.info(`Client's Secret address is ${accAddress}`);
-
+        readstream.on('error', function (err) {
+            res.end(err);
         });
 
     });
+
+    let httpServer = http.createServer(app);
+
+    // httpsServer.listen(8080);
+    httpServer.listen(port, () => {
+        let s1 = '    __   ______   ______   __  __   ______   __        ';
+        let s2 = '   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
+        let s3 = '  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
+        let s4 = ' /\\_____\\\\ \\_\\ \\_\\\\ \\_____\\\\ \\_\\ \\_\\\\ \\_\\ \\_\\\\ \\_____\\ ';
+        let s5 = ' \\/_____/ \\/_/\\/_/ \\/_____/ \\/_/\\/_/ \\/_/\\/_/ \\/_____/ ';
+
+        logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
+
+        logger.info(`Now listening at https://localhost:${port}`);
+
+        logger.info(`Client's Secret address is ${accAddress}`);
+
+    });
+
 }
 
 function main() {
