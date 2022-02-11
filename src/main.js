@@ -108,18 +108,19 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
 
     let miners = ["t01000"];
 
-    rwb[req.body.pkey] = {
+    let new_block = {
         address: req.body.address,
         key: req.body.skey
     };
+
+    console.log(new_block);
+    rwb[req.body.pkey] = new_block;
 
 
     fs.readFile(f.path, (err, data) => {
         if (err) {
             return res.status(500).send(err);
         }
-
-
 
         ipfs.add(data).then((cid) => {
 
@@ -136,7 +137,7 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
             getTopNodes(secretjs, 20).then((data) => {
                 for (const i of data) {
                     axios.get('https://' + i + '/pinipfs?cid=' + cd.toV1().toBaseEncodedString("base32")).catch((err) => {
-                        logger.debug("Couldn't reach the external node.");
+                        logger.info("Couldn't reach the external node.");
                     });
                 }
             });
@@ -194,7 +195,9 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
 }
 
 function pinIPFS(ipfs, cid) {
-    ipfs.pin.add(cid);
+    ipfs.pin.add(cid).catch((err) => {
+        logger.error("Couldn't pin file.");
+    });
 }
 
 function handleDownload(req, res, ipfs) {
@@ -267,7 +270,7 @@ function startEndPoints(ipfs, signingPen) {
         console.log(pip);
         console.log(port);
 
-        let ip = process.env.PUBLIC_IP + ":" + process.env.PORT;
+        let ip = process.env.PUBLIC_IP;
         console.log(ip);
         let msg = {
             init_node: {
@@ -276,14 +279,36 @@ function startEndPoints(ipfs, signingPen) {
             }
         };
         console.log(msg);
-        secretjs.execute(process.env.CONTRACT, msg).then((res) => { }).catch((err) => {
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => { console.log(res); exit();}).catch((err) => {
             console.log(err);
+            exit();
         });
-        exit();
+        
     } else {
 
 
         getTopNodes(secretjs, 10).then((data) => {
+            // console.log(data);
+            ipfs.swarm.localAddrs().then((multiaddrs) => {
+                // console.log(multiaddrs)
+                for (const i of data) {
+                    for(const ad of multiaddrs) {
+                        // console.log(ad.toString());
+                        let url = 'https://' + i + '/connectIPFS?address=' + ad.toString();
+                        // console.log(url);
+                        axios.get(url).then((r) => {
+                            logger.debug(r.status);
+                        }).catch((err) => {
+                            logger.debug("Couldn't reach the external node.");
+                        });
+                    }
+                }
+
+            }).catch((err) => {
+                logger.error(err);
+            });
+            
+
             logger.info(JSON.stringify(data));
         });
 
@@ -292,29 +317,35 @@ function startEndPoints(ipfs, signingPen) {
     let reward_blocks = {};
 
 
+
     app.use(CORS());
 
     filecoin.endpoint = process.env.RPC_ENDPOINT;
 
-    app.post('finished_upload', (req, res) => {
+    app.post('/finish_upload', upload.none(), (req, res) => {
 
         let pkey = req.body.pkey;
 
         let block = reward_blocks[pkey];
 
+        console.log(block);
 
         let msg = {
             claim_reward: {
-                address: block.addr,
+                address: block.address,
                 key: block.key,
                 path: pkey
             }
         };
         console.log(msg);
+        res.status(200).json({status: 'OK'});
+
         secretjs.execute(process.env.CONTRACT, msg).then((res) => {
             delete reward_blocks[pkey];
+            
         }).catch((err) => {
             console.log(err);
+            // res.sendStatus(500);
         });
     });
 
@@ -325,6 +356,18 @@ function startEndPoints(ipfs, signingPen) {
     app.get('/pinipfs', (req, res) => {
         pinIPFS(ipfs, req.query.cid);
 
+        return res.sendStatus(200);
+    });
+
+    app.get('/connectIPFS', (req, res) => {
+        let adrr = req.query.address;
+        console.log(adrr)
+        ipfs.swarm.connect(adrr).then((response) => {
+            console.log(response);
+        }).catch((err) => {
+            logger.debug("Couldn't join swarm.");
+        });
+        
         return res.sendStatus(200);
     });
 
@@ -396,9 +439,6 @@ function startEndPoints(ipfs, signingPen) {
 
         handleDownload(req, res, ipfs);
 
-        res.send({
-            fakeRefs
-        });
     });
 
     app.get('/docs', (req, res) => {
