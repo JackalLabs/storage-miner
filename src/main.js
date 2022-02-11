@@ -24,14 +24,6 @@ const {
 } = require("secretjs");
 
 var http = require('http');
-var https = require('https');
-var privateKey = fs.readFileSync('key.pem', 'utf8');
-var certificate = fs.readFileSync('cert.pem', 'utf8');
-
-var credentials = {
-    key: privateKey,
-    cert: certificate
-};
 
 const customFees = {
     upload: {
