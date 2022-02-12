@@ -1,5 +1,6 @@
 src/uploads/
 pack/*
+!pack/.anchor
 .env
 
 key.pem
