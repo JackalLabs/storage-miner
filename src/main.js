@@ -10,7 +10,10 @@ const IPFS = require('ipfs-http-client');
 const CIDs = require('cids');
 const filecoin = require("dingojs");
 const customFees = require('./fees')
-const { logger, myformat } = require('./logger')
+const logger = require('./logger');
+const winston = require('winston');
+const { format } = winston;
+
 
 const axios = require('axios');
 const CORS = require('cors');
@@ -380,9 +383,9 @@ function main() {
 
     if (process.env.NODE_ENV !== 'production') {
         logger.add(new winston.transports.Console({
-            format: combine(
+            format: format.combine(
                 format.colorize(),
-                myformat
+                logger.myformat
             ),
         }));
     }
@@ -391,7 +394,6 @@ function main() {
 
     const mnemonic = process.env.MNEMONIC;
     const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
-
         startEndPoints(node, signingPen);
     });
 }
