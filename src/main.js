@@ -8,14 +8,9 @@ const path = require('path');
 const multer = require('multer');
 const IPFS = require('ipfs-http-client');
 const CIDs = require('cids');
-const winston = require('winston');
-const format = winston.format;
 const filecoin = require("dingojs");
-
-const {
-    combine,
-    printf
-} = format;
+const customFees = require('./fees')
+const { logger, myformat } = require('./logger')
 
 const axios = require('axios');
 const CORS = require('cors');
@@ -30,63 +25,6 @@ const {
 
 var http = require('http');
 const { exit } = require('process');
-
-const customFees = {
-    upload: {
-        amount: [{
-            amount: "2000000",
-            denom: "uscrt"
-        }],
-        gas: "2000000",
-    },
-    init: {
-        amount: [{
-            amount: "500000",
-            denom: "uscrt"
-        }],
-        gas: "500000",
-    },
-    exec: {
-        amount: [{
-            amount: "500000",
-            denom: "uscrt"
-        }],
-        gas: "500000",
-    },
-    send: {
-        amount: [{
-            amount: "80000",
-            denom: "uscrt"
-        }],
-        gas: "80000",
-    },
-}
-
-const myformat = combine(
-    format.timestamp({
-        format: 'YYYY-MM-DD HH:mm:ss'
-    }),
-    format.align(),
-    printf(info => `[${info.timestamp}] [${info.level}]: ${info.stack == null ? info.message.trim() : info.stack}`)
-);
-
-const logger = winston.createLogger({
-    level: 'info',
-    format: myformat,
-    defaultMeta: {
-        service: 'user-service'
-    },
-    transports: [
-
-        new winston.transports.File({
-            filename: 'logs/error.log',
-            level: 'error'
-        }),
-        new winston.transports.File({
-            filename: 'logs/combined.log'
-        }),
-    ],
-});
 
 const storage = multer.diskStorage({
     destination: function (req, file, callback) {
@@ -261,49 +199,26 @@ function startEndPoints(ipfs, signingPen) {
         txEncryptionSeed, customFees
     );
 
-    if (args.includes("genesis")) {
-
-        let ip = process.env.PUBLIC_IP;
-        let msg = {
-            init_node: {
-                address: accAddress,
-                ip: ip
-            }
-        };
-        secretjs.execute(process.env.CONTRACT, msg).then((res) => { exit();}).catch((err) => {
-            logger.error(err);
-            exit();
-        });
-        
-    } else {
-
-
-        getTopNodes(secretjs, 10).then((data) => {
-            ipfs.swarm.localAddrs().then((multiaddrs) => {
-                for (const i of data) {
-                    for(const ad of multiaddrs) {
-                        let url = 'https://' + i + '/connectIPFS?address=' + ad.toString();
-                        axios.get(url).then((r) => {
-                            logger.debug(r.status);
-                        }).catch((err) => {
-                            logger.debug("Couldn't reach the external node.");
-                        });
-                    }
+    getTopNodes(secretjs, 10).then((data) => {
+        ipfs.swarm.localAddrs().then((multiaddrs) => {
+            for (const i of data) {
+                for(const ad of multiaddrs) {
+                    let url = 'https://' + i + '/connectIPFS?address=' + ad.toString();
+                    axios.get(url).then((r) => {
+                        logger.debug(r.status);
+                    }).catch((err) => {
+                        logger.debug("Couldn't reach the external node.");
+                    });
                 }
+            }
 
-            }).catch((err) => {
-                logger.error(err);
-            });
-            
-
-            logger.info(JSON.stringify(data));
+        }).catch((err) => {
+            logger.error(err);
         });
-
-    }
+        logger.info(JSON.stringify(data));
+    });
 
     let reward_blocks = {};
-
-
 
     app.use(CORS());
 
@@ -314,7 +229,6 @@ function startEndPoints(ipfs, signingPen) {
         let pkey = req.body.pkey;
 
         let block = reward_blocks[pkey];
-
 
         let msg = {
             claim_reward: {
@@ -473,13 +387,10 @@ function main() {
         }));
     }
 
-
     const node = IPFS.create("http://127.0.0.1:5001");
-
 
     const mnemonic = process.env.MNEMONIC;
     const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
-
 
         startEndPoints(node, signingPen);
     });
