@@ -264,21 +264,13 @@ function startEndPoints(ipfs, signingPen) {
 
     if (args.includes("genesis")) {
 
-        let pip = process.env.PUBLIC_IP;
-        let port = process.env.PORT;
-
-        console.log(pip);
-        console.log(port);
-
         let ip = process.env.PUBLIC_IP;
-        console.log(ip);
         let msg = {
             init_node: {
                 address: accAddress,
                 ip: ip
             }
         };
-        console.log(msg);
         secretjs.execute(process.env.CONTRACT, msg).then((res) => { console.log(res); exit();}).catch((err) => {
             console.log(err);
             exit();
