@@ -1,4 +1,5 @@
 src/uploads/
+pack/*
 .env
 
 key.pem
