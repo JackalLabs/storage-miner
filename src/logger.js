@@ -27,7 +27,5 @@ const logger = winston.createLogger({
     ],
 });
 
-module.export = {
-    logger: logger,
-    myformat: myformat
-}
+module.exports = logger;
+module.exports.myformat = myformat;
