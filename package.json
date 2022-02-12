@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/main.js",
     "genesis": "node src/genesis.js",
-    "packup": "docker/bundle.sh",
+    "packup_http": "docker/http_bundle.sh",
+    "packup_traefik": "docker/traefik_bundle.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

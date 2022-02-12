@@ -6,7 +6,7 @@ WORKDIR /node
 COPY $TARBALL .
 RUN tar zxvf $TARBALL
 RUN mkdir package/src/uploads package/logs
-COPY .env package/.env
+COPY node.env package/.env
 WORKDIR /node/package
 RUN npm i
 RUN npm run genesis
