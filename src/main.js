@@ -59,32 +59,45 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
 
     fs.readFile(f.path, (err, data) => {
         if (err) {
-            return res.status(500).send(err);
+            return res.status(500).send({
+                location: 'fs.readFile()',
+                error: e
+            });
         }
 
-        ipfs.add(data).then((cid) => {
+        ipfs.add(data)
+        .then((cid) => {
 
 
 
             let cd = new CIDs(cid.path);
+            const v1Cid = cd.toV1().toBaseEncodedString("base32")
+            logger.info(`v1Cid : ${v1Cid}`)
             let jsonRes = {
-                cid: cd.toV1().toBaseEncodedString("base32"),
+                cid: v1Cid,
                 miners: miners,
                 dataId: "empty",
                 node: process.env.PUBLIC_IP
             };
 
-            getTopNodes(secretjs, 20).then((data) => {
+            getTopNodes(secretjs, 20)
+            .then((data) => {
                 for (const i of data) {
-                    axios.get('https://' + i + '/pinipfs?cid=' + cd.toV1().toBaseEncodedString("base32")).catch((err) => {
+                    axios.get('https://' + i + '/pinipfs?cid=' + v1Cid)
+                    .catch((err) => {
                         logger.info("Couldn't reach the external node.");
                     });
                 }
+            })
+            .catch((err) => {
+                logger.error(err);
             });
             return res.send(jsonRes);
 
-            filecoin.client.import(f.path).then((d) => {
-                filecoin.client.dealPieceCID(d.result.Root['/']).then((s) => {
+            filecoin.client.import(f.path)
+            .then((d) => {
+                filecoin.client.dealPieceCID(d.result.Root['/'])
+                .then((s) => {
                     let CID = s.result.PieceCID['/'];
 
                     let pad_size = filecoin.utils.calculatePaddedSize(s.result.PayloadSize);
@@ -99,7 +112,8 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
                     };
 
                     let sDeal = function () {
-                        filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6)).then((g) => {
+                        filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6))
+                        .then((g) => {
 
 
                             turn += 1;
@@ -110,26 +124,42 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
                                 return res.send(jsonRes);
                             }
 
-                        }).catch((e) => {
+                        })
+                        .catch((e) => {
                             logger.error(e);
-                            return res.status(500).send(e);
+                            return res.status(500).send({
+                                location: 'filecoin.client.startDeal()',
+                                error: e
+                            });
                         });
                     }
                     sDeal();
 
-                }).catch((e) => {
+                })
+                .catch((e) => {
                     logger.error(e);
-                    return res.status(500).send(e);
+                    return res.status(500).send({
+                        location: 'filecoin.client.dealPieceCID()',
+                        error: e
+                    });
                 });
 
-            }).catch((e) => {
+            })
+            .catch((e) => {
                 logger.error(e);
-                return res.status(500).send(e);
+                return res.status(500).send({
+                    location: 'filecoin.client.import()',
+                    error: e
+                });
             });
 
-        }).catch((err) => {
+        })
+        .catch((err) => {
             logger.error(err);
-            return res.status(500).send(err);
+            return res.status(500).send({
+                location: 'ipfs.add()',
+                error: err
+            });
         });
     });
 }
@@ -202,20 +232,25 @@ function startEndPoints(ipfs, signingPen) {
         txEncryptionSeed, customFees
     );
 
-    getTopNodes(secretjs, 10).then((data) => {
-        ipfs.swarm.localAddrs().then((multiaddrs) => {
+    getTopNodes(secretjs, 10)
+    .then((data) => {
+        ipfs.swarm.localAddrs()
+        .then((multiaddrs) => {
             for (const i of data) {
                 for(const ad of multiaddrs) {
                     let url = 'https://' + i + '/connectIPFS?address=' + ad.toString();
-                    axios.get(url).then((r) => {
+                    axios.get(url)
+                    .then((r) => {
                         logger.debug(r.status);
-                    }).catch((err) => {
+                    })
+                    .catch((err) => {
                         logger.debug("Couldn't reach the external node.");
                     });
                 }
             }
 
-        }).catch((err) => {
+        })
+        .catch((err) => {
             logger.error(err);
         });
         logger.info(JSON.stringify(data));
@@ -390,7 +425,7 @@ function main() {
         }));
     }
 
-    const node = IPFS.create("http://127.0.0.1:5001");
+    const node = IPFS.create("ipfs-jkl:5001");
 
     const mnemonic = process.env.MNEMONIC;
     const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
