@@ -5,8 +5,7 @@
   "scripts": {
     "start": "node src/main.js",
     "genesis": "node src/genesis.js",
-    "clearpack": "find pack ! -path pack -delete",
-    "packup": "npm run clearpack && npm pack --pack-destination pack && cp .env.template pack/.env.template && cp Dockerfile pack/Dockerfile",
+    "packup": "docker/bundle.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

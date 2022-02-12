@@ -72,7 +72,6 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
 
             let cd = new CIDs(cid.path);
             const v1Cid = cd.toV1().toBaseEncodedString("base32")
-            logger.info(`v1Cid : ${v1Cid}`)
             let jsonRes = {
                 cid: v1Cid,
                 miners: miners,
@@ -425,7 +424,7 @@ function main() {
         }));
     }
 
-    const node = IPFS.create("ipfs-jkl:5001");
+    const node = IPFS.create({host: "ipfs-jkl", port: "5001"});
 
     const mnemonic = process.env.MNEMONIC;
     const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {

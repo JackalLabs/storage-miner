@@ -1,0 +1,47 @@
+version: "3"
+
+networks:
+  jkl-net:
+
+volumes:
+  stagingdata:
+  filedata:
+  nodedata:
+  nodelogs:
+
+services:
+
+  ipfs-jkl:
+    image: ipfs/go-ipfs:v0.10.0
+    container_name: "ipfs-jkl"
+    networks:
+      - jkl-net
+    restart: unless-stopped
+    volumes:
+      - "stagingdata:/export"
+      - "filedata:/data/ipfs"
+    ports:
+      - "4001:4001"
+      - "4001:4001/udp"
+    expose:
+      - "5001"
+      - "8080"
+      - "8081"
+
+  node-jkl:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: "jkl-prime"
+    restart: unless-stopped
+    command: "npm run start"
+    environment:
+      PORT: 3000
+    working_dir: "/node/package"
+    networks:
+      - jkl-net
+    volumes:
+      - "nodedata:/node/package/src/uploads"
+      - "nodelogs:/node/package/logs"
+    ports:
+      - "80:3000"

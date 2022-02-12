@@ -1,0 +1,73 @@
+version: "3"
+# WORK IN PROGRESS - DO NOT USE
+networks:
+  jkl-net:
+
+volumes:
+  filedata:
+
+services:
+  traefik-proxy:
+    image: traefik:v1.7-alpine
+    container_name: "traefik-proxy"
+    command: --api --docker  # Enables the web UI and tells Træfik to listen to docker
+    environment:
+      - "DO_AUTH_TOKEN=${DOTOKEN}"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - main-net
+    restart: always
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./traefik/traefik.toml:/traefik.toml"
+      - "./traefik/acme.json:/acme.json"
+    labels:
+      - traefik.backend=traefik-proxy
+      - traefik.frontend.rule=Host:traefik.localhost
+      - traefik.port=8080
+      - traefik.frontend.priority=10
+
+  ipfs-jkl:
+    image: ipfs/go-ipfs:v0.10.0
+    container_name: "ipfs-jkl"
+    networks:
+      - jkl-net
+    depends_on:
+      - traefik-proxy
+    restart: always
+    volumes:
+      # - "./nginx/content:/usr/share/nginx/html"
+    labels:
+      - traefik.backend=ipfs-jkl
+      - traefik.port=5001
+
+      # Swarm TCP; should be exposed to the public
+EXPOSE 4001
+# Swarm UDP; should be exposed to the public
+EXPOSE 4001/udp
+# Daemon API; must not be exposed publicly but to client services under you control
+EXPOSE 5001
+
+  node-jkl:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: "jkl-prime"
+    restart: always
+    command: "npm run start"
+    environment:
+      PORT: 51615
+    working_dir: "/node/package"
+    networks:
+      - jkl-net
+    depends_on:
+      - traefik-proxy
+    volumes:
+      # - "./marketProxy2:/home/app"
+    labels:
+      - traefik.backend=node-jkl
+      - traefik.frontend.rule=Host:localhost
+      - traefik.port=51615
+      - traefik.frontend.priority=100
