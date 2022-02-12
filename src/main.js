@@ -113,7 +113,6 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
         key: req.body.skey
     };
 
-    console.log(new_block);
     rwb[req.body.pkey] = new_block;
 
 
@@ -271,8 +270,8 @@ function startEndPoints(ipfs, signingPen) {
                 ip: ip
             }
         };
-        secretjs.execute(process.env.CONTRACT, msg).then((res) => { console.log(res); exit();}).catch((err) => {
-            console.log(err);
+        secretjs.execute(process.env.CONTRACT, msg).then((res) => { exit();}).catch((err) => {
+            logger.error(err);
             exit();
         });
         
@@ -280,14 +279,10 @@ function startEndPoints(ipfs, signingPen) {
 
 
         getTopNodes(secretjs, 10).then((data) => {
-            // console.log(data);
             ipfs.swarm.localAddrs().then((multiaddrs) => {
-                // console.log(multiaddrs)
                 for (const i of data) {
                     for(const ad of multiaddrs) {
-                        // console.log(ad.toString());
                         let url = 'https://' + i + '/connectIPFS?address=' + ad.toString();
-                        // console.log(url);
                         axios.get(url).then((r) => {
                             logger.debug(r.status);
                         }).catch((err) => {
@@ -320,7 +315,6 @@ function startEndPoints(ipfs, signingPen) {
 
         let block = reward_blocks[pkey];
 
-        console.log(block);
 
         let msg = {
             claim_reward: {
@@ -329,15 +323,12 @@ function startEndPoints(ipfs, signingPen) {
                 path: pkey
             }
         };
-        console.log(msg);
         res.status(200).json({status: 'OK'});
 
         secretjs.execute(process.env.CONTRACT, msg).then((res) => {
             delete reward_blocks[pkey];
             
         }).catch((err) => {
-            console.log(err);
-            // res.sendStatus(500);
         });
     });
 
@@ -353,9 +344,7 @@ function startEndPoints(ipfs, signingPen) {
 
     app.get('/connectIPFS', (req, res) => {
         let adrr = req.query.address;
-        console.log(adrr)
         ipfs.swarm.connect(adrr).then((response) => {
-            console.log(response);
         }).catch((err) => {
             logger.debug("Couldn't join swarm.");
         });
