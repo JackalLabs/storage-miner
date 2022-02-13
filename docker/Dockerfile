@@ -5,6 +5,7 @@ RUN mkdir /node
 WORKDIR /node
 COPY $TARBALL .
 RUN tar zxvf $TARBALL
+RUN mv package/build package/src
 RUN mkdir package/src/uploads package/logs
 COPY node.env package/.env
 WORKDIR /node/package

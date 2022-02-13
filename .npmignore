@@ -1,8 +1,9 @@
-src/uploads/
-pack/*
-!pack/.anchor
+pack/
 .env
-build/
+src/
+docker/
+.idea/
+webpack.config.js
 
 key.pem
 cert.pem

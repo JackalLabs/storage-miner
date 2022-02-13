@@ -5,8 +5,9 @@
   "scripts": {
     "start": "node src/main.js",
     "genesis": "node src/genesis.js",
-    "packup_http": "docker/http_bundle.sh",
-    "packup_traefik": "docker/traefik_bundle.sh",
+    "compress": "webpack",
+    "packup_http": "webpack && docker/http_bundle.sh",
+    "packup_traefik": "webpack && docker/traefik_bundle.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -51,5 +52,9 @@
     "secretjs": "^0.17.5",
     "underscore": "^1.13.1",
     "winston": "^3.4.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.68.0",
+    "webpack-cli": "^4.9.2"
   }
 }
