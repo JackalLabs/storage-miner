@@ -379,20 +379,6 @@ function startEndPoints(ipfs, signingPen) {
 
     });
 
-    app.get('/', (req, res) => { // file uploading home page. Nothing fancy, will remove when the time is right.
-
-        let readstream = fs.createReadStream(path.join(__dirname, "www", "index.html"));
-
-        readstream.on('open', function () {
-            readstream.pipe(res);
-        });
-
-        readstream.on('error', function (err) {
-            res.end(err);
-        });
-
-    });
-
     let httpServer = http.createServer(app);
 
     // httpsServer.listen(8080);
