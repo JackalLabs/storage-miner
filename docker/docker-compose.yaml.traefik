@@ -1,73 +1,101 @@
-version: "3"
+version: "3.6"
 # WORK IN PROGRESS - DO NOT USE
-networks:
-  jkl-net:
 
 volumes:
   filedata:
+  lecerts:
 
 services:
-  traefik-proxy:
-    image: traefik:v1.7-alpine
-    container_name: "traefik-proxy"
-    command: --api --docker  # Enables the web UI and tells Træfik to listen to docker
+  traefik-light:
+    image: traefik:v2.6 # The official v2 Traefik docker image
+    container_name: traefik-light
+    restart: unless-stopped
+    volumes:
+      - "lecerts:/letsencrypt"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.network=jkl-net"
+      - "--providers.docker.network=proxy"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=tcp://socket-proxy:2375"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls.certResolver=le-resolver"
+      - "--entrypoints.websecure.http.tls.domains[0].main=${ROOT_DOMAIN}"
+      - "--entrypoints.websecure.http.tls.domains[0].sans=traefik.${ROOT_DOMAIN}"
+      - "--entrypoints.ipfstcp.address=:4001"
+      - "--entrypoints.ipfsudp.address=:4001/udp"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=${PROVIDER}"
+      - "--certificatesresolvers.myresolver.acme.email=${LE_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     environment:
-      - "DO_AUTH_TOKEN=${DOTOKEN}"
+      #  Other Providers Supported :: https://doc.traefik.io/traefik/https/acme/#providers
+      - "DO_AUTH_TOKEN=${DO_AUTH_TOKEN}"
     ports:
       - "80:80"
       - "443:443"
-    networks:
-      - main-net
-    restart: always
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./traefik/traefik.toml:/traefik.toml"
-      - "./traefik/acme.json:/acme.json"
+      - "4001:4001"
     labels:
-      - traefik.backend=traefik-proxy
-      - traefik.frontend.rule=Host:traefik.localhost
-      - traefik.port=8080
-      - traefik.frontend.priority=10
+      - "traefik.docker.network=jkl-net"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.jackal-traefik.rule=Host(`traefik.`${ROOT_DOMAIN})"
+      - "traefik.http.routers.jackal-traefik.service=jackal-traefik"
+      - "traefik.http.routers.jackal-traefik.entrypoints=websecure"
+      - "traefik.http.routers.jackal-traefik.tls=true"
+      - "traefik.http.routers.jackal-traefik.tls.certresolver=le-resolver"
+      - "traefik.http.services.jackal-traefik.loadbalancer.server.port=8080"
+
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: socket-proxy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      CONTAINERS: 1
+    labels:
+      - "traefik.docker.network=proxy"
+      - "traefik.tcp.services.docker-proxy.loadbalancer.server.port=2375"
 
   ipfs-jkl:
     image: ipfs/go-ipfs:v0.10.0
-    container_name: "ipfs-jkl"
-    networks:
-      - jkl-net
+    container_name: ipfs-jkl
     depends_on:
-      - traefik-proxy
-    restart: always
+      - traefik-light
+    restart: unless-stopped
     volumes:
-      # - "./nginx/content:/usr/share/nginx/html"
+     - "filedata:/data/ipfs"
     labels:
-      - traefik.backend=ipfs-jkl
-      - traefik.port=5001
+      - "traefik.docker.network=jkl-net"
+      - "traefik.http.services.jackal-ipfs.loadbalancer.server.port=5001"
+      - "traefik.tcp.routers.jackal-tcp.rule=HostSNI(`{domain:.+}`)"
+      - "traefik.tcp.routers.jackal-tcp.entrypoints=ipfstcp"
+      - "traefik.tcp.routers.jackal-tcp.service=jackal-tcp"
+      - "traefik.tcp.routers.jackal-tcp.tls=true"
+      - "traefik.tcp.routers.jackal-tcp.tls.certresolver=le-resolver"
+      - "traefik.tcp.services.jackal-tcp.loadbalancer.server.port=4001"
+      - "traefik.udp.routers.jackal-udp.entrypoints=ipfsudp"
+      - "traefik.udp.routers.jackal-udp.service=jackal-udp"
+      - "traefik.udp.services.jackal-udp.loadbalancer.server.port=4001"
 
-      # Swarm TCP; should be exposed to the public
-EXPOSE 4001
-# Swarm UDP; should be exposed to the public
-EXPOSE 4001/udp
-# Daemon API; must not be exposed publicly but to client services under you control
-EXPOSE 5001
-
-  node-jkl:
+  jkl-prime:
     build:
       context: ./
       dockerfile: Dockerfile
-    container_name: "jkl-prime"
-    restart: always
-    command: "npm run start"
-    environment:
-      PORT: 51615
     working_dir: "/node/package"
-    networks:
-      - jkl-net
+    container_name: jkl-prime
     depends_on:
-      - traefik-proxy
-    volumes:
-      # - "./marketProxy2:/home/app"
+      - traefik-light
+    restart: unless-stopped
+    command: "npm run start"
     labels:
-      - traefik.backend=node-jkl
-      - traefik.frontend.rule=Host:localhost
-      - traefik.port=51615
-      - traefik.frontend.priority=100
+      - "traefik.docker.network=jkl-net"
+      - "traefik.http.routers.jackal-tls.rule=Host(${ROOT_DOMAIN})"
+      - "traefik.http.routers.jackal-tls.service=jackal-tls"
+      - "traefik.http.routers.jackal-tls.entrypoints=websecure"
+      - "traefik.http.routers.jackal-tls.tls=true"
+      - "traefik.http.routers.jackal-tls.tls.certresolver=le-resolver"
+      - "traefik.http.services.jackal-tls.loadbalancer.server.port=3000"

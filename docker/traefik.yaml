@@ -1,3 +1,78 @@
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: leresolver
+  ipfstcp:
+    address: ":4001"
+    http:
+      tls:
+        certResolver: leresolver
+  ipfsudp:
+    address: ":4001/udp"
+
+certificatesResolvers:
+  le-resolver:
+    acme:
+      # Email address used for registration.
+      email: "test@example.com"
+      storage: "acme.json"
+      tlsChallenge:
+       dnsChallenge:
+         # DNS provider used.
+         provider: digitalocean
+
+http:
+  routers:
+    Jackal-TLS:
+      entryPoints:
+        - "websecure"
+      rule: "Host(`{domain:.+}`)"
+      service: "jackal"
+      tls: {}
+    Jackal-Traefik:
+      entryPoints:
+        - "websecure"
+      rule: "Host(`traefik.{domain:.+}`)"
+      service: "jackal"
+      tls: {}
+
+tcp:
+  routers:
+    Jackal-TCP:
+      entryPoints:
+        - "ipfstcp"
+      rule: "HostSNI(`{domain:.+}`)"
+      service: "jackal"
+      tls: {}
+  services:
+    Jackal-TCP:
+      loadBalancer:
+        servers:
+          - address: "localhost:4001"
+
+udp:
+  routers:
+    Jackal-UDP:
+      entryPoints:
+        - "ipfsudp"
+      service: "jackal"
+  services:
+    Jackal-UDP:
+      loadBalancer:
+        servers:
+          - address: "localhost:4001"
+
+
 providers:
   docker:
     endpoint: "tcp://socket-proxy:2375"
