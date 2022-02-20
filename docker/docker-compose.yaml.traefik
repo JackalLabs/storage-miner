@@ -13,8 +13,8 @@ services:
     volumes:
       - "lecerts:/letsencrypt"
     command:
-      - "--log.level=DEBUG"
-      - "--api.insecure=true"
+      # - "--log.level=DEBUG"
+      # - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.network=jkl-net"
       - "--providers.docker.network=proxy"
@@ -29,13 +29,8 @@ services:
       - "--entrypoints.websecure.http.tls.domains[0].sans=traefik.${ROOT_DOMAIN}"
       - "--entrypoints.ipfstcp.address=:4001"
       - "--entrypoints.ipfsudp.address=:4001/udp"
-      - "--certificatesresolvers.myresolver.acme.dnschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=${PROVIDER}"
-      - "--certificatesresolvers.myresolver.acme.email=${LE_EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-    environment:
-      #  Other Providers Supported :: https://doc.traefik.io/traefik/https/acme/#providers
-      - "DO_AUTH_TOKEN=${DO_AUTH_TOKEN}"
+      - "--certificatesResolvers.le-resolver.acme.httpChallenge.entryPoint=web"
+      - "--certificatesresolvers.le-resolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
       - "443:443"
@@ -45,10 +40,10 @@ services:
       - "traefik.docker.network=jkl-net"
       - "traefik.docker.network=proxy"
       - "traefik.http.routers.traefik-light.rule=Host(`traefik.${ROOT_DOMAIN}`)"
-      - "traefik.http.routers.jackal-traefik.service=jackal-traefik"
-      - "traefik.http.routers.jackal-traefik.entrypoints=websecure"
-      - "traefik.http.routers.jackal-traefik.tls=true"
-      - "traefik.http.routers.jackal-traefik.tls.certresolver=le-resolver"
+      - "traefik.http.routers.traefik-light.service=traefik-light"
+      - "traefik.http.routers.traefik-light.entrypoints=websecure"
+      - "traefik.http.routers.traefik-light.tls=true"
+      - "traefik.http.routers.traefik-light.tls.certresolver=le-resolver"
       - "traefik.http.services.traefik-light.loadbalancer.server.port=8080"
 
   socket-proxy:
@@ -75,7 +70,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=jkl-net"
       - "traefik.http.services.jackal-ipfs.loadbalancer.server.port=5001"
-      - "traefik.tcp.routers.jackal-tcp.rule=HostSNI(`{domain:.+}`)"
+      - "traefik.tcp.routers.jackal-tcp.rule=HostSNI(`${ROOT_DOMAIN}`)"
       - "traefik.tcp.routers.jackal-tcp.entrypoints=ipfstcp"
       - "traefik.tcp.routers.jackal-tcp.service=jackal-tcp"
       - "traefik.tcp.routers.jackal-tcp.tls=true"
@@ -100,7 +95,7 @@ services:
       - "traefik.docker.network=jkl-net"
       - "traefik.http.routers.jkl-prime.rule=Host(`${ROOT_DOMAIN}`)"
       - "traefik.http.routers.jkl-prime.service=jkl-prime"
-      - "traefik.http.routers.jkl-prime.entrypoints=web"
-      - "traefik.http.routers.jackal-tls.tls=true"
-      - "traefik.http.routers.jackal-tls.tls.certresolver=le-resolver"
+      - "traefik.http.routers.jkl-prime.entrypoints=websecure"
+      - "traefik.http.routers.jkl-prime.tls=true"
+      - "traefik.http.routers.jkl-prime.tls.certresolver=le-resolver"
       - "traefik.http.services.jkl-prime.loadbalancer.server.port=3000"
