@@ -2,7 +2,6 @@
 const dotenv = require('dotenv').config();
 const express = require('express');
 const app = express();
-const port = process.env.PORT;
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
@@ -14,6 +13,8 @@ const logger = require('./logger');
 const winston = require('winston');
 const { format } = winston;
 
+// const port = process.env.PORT;
+const port = 3000;
 
 const axios = require('axios');
 const CORS = require('cors');
@@ -337,7 +338,7 @@ function startEndPoints(ipfs, signingPen) {
         });
     });
 
-    app.get('/status', (req, res) => {
+    app.get('/', (req, res) => {
         return res.json({
             code: 1000,
             status: "online"
@@ -409,6 +410,7 @@ function startEndPoints(ipfs, signingPen) {
 
         logger.info(`Client's Secret address is ${accAddress}`);
 
+        console.log(`running on port: ${port}`)
     });
 
 }

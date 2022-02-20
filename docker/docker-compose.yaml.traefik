@@ -13,6 +13,8 @@ services:
     volumes:
       - "lecerts:/letsencrypt"
     command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.network=jkl-net"
       - "--providers.docker.network=proxy"
@@ -39,14 +41,15 @@ services:
       - "443:443"
       - "4001:4001"
     labels:
+      - "traefik.enable=true"
       - "traefik.docker.network=jkl-net"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.jackal-traefik.rule=Host(`traefik.`${ROOT_DOMAIN})"
+      - "traefik.http.routers.traefik-light.rule=Host(`traefik.${ROOT_DOMAIN}`)"
       - "traefik.http.routers.jackal-traefik.service=jackal-traefik"
       - "traefik.http.routers.jackal-traefik.entrypoints=websecure"
       - "traefik.http.routers.jackal-traefik.tls=true"
       - "traefik.http.routers.jackal-traefik.tls.certresolver=le-resolver"
-      - "traefik.http.services.jackal-traefik.loadbalancer.server.port=8080"
+      - "traefik.http.services.traefik-light.loadbalancer.server.port=8080"
 
   socket-proxy:
     image: tecnativa/docker-socket-proxy
@@ -69,6 +72,7 @@ services:
     volumes:
      - "filedata:/data/ipfs"
     labels:
+      - "traefik.enable=true"
       - "traefik.docker.network=jkl-net"
       - "traefik.http.services.jackal-ipfs.loadbalancer.server.port=5001"
       - "traefik.tcp.routers.jackal-tcp.rule=HostSNI(`{domain:.+}`)"
@@ -92,10 +96,11 @@ services:
     restart: unless-stopped
     command: "npm run start"
     labels:
+      - "traefik.enable=true"
       - "traefik.docker.network=jkl-net"
-      - "traefik.http.routers.jackal-tls.rule=Host(${ROOT_DOMAIN})"
-      - "traefik.http.routers.jackal-tls.service=jackal-tls"
-      - "traefik.http.routers.jackal-tls.entrypoints=websecure"
+      - "traefik.http.routers.jkl-prime.rule=Host(`${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.jkl-prime.service=jkl-prime"
+      - "traefik.http.routers.jkl-prime.entrypoints=web"
       - "traefik.http.routers.jackal-tls.tls=true"
       - "traefik.http.routers.jackal-tls.tls.certresolver=le-resolver"
-      - "traefik.http.services.jackal-tls.loadbalancer.server.port=3000"
+      - "traefik.http.services.jkl-prime.loadbalancer.server.port=3000"

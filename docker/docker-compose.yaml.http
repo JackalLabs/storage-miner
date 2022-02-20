@@ -35,8 +35,6 @@ services:
     container_name: "jkl-prime"
     restart: unless-stopped
     command: "npm run start"
-    environment:
-      PORT: 3000
     working_dir: "/node/package"
     networks:
       - jkl-net
