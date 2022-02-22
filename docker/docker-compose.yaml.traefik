@@ -65,7 +65,9 @@ services:
       - traefik-light
     restart: unless-stopped
     volumes:
-     - "filedata:/data/ipfs"
+      - "filedata:/data/ipfs"
+    environment:
+      IPFS_PROFILE: "server"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=jkl-net"
