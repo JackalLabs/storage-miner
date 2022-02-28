@@ -182,6 +182,8 @@ function getTopNodes(secretjs, total) {
         };
         secretjs.queryContractSmart(process.env.CONTRACT, msg).then((res) => {
             resolve(JSON.parse(Buffer.from(res.data, "base64").toString()));
+        }).catch((err) => {
+            logger.error(err);
         });
     })
 
@@ -246,6 +248,7 @@ function startEndPoints(ipfs, signingPen) {
             delete reward_blocks[pkey];
             
         }).catch((err) => {
+            logger.error(err);
         });
     });
 

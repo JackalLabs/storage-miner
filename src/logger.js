@@ -2,6 +2,7 @@ const winston = require('winston');
 const { format } = winston;
 
 const myformat = format.combine(
+    format.errors({ stack: true }), 
     format.timestamp({
         format: 'YYYY-MM-DD HH:mm:ss'
     }),
