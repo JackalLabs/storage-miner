@@ -3,6 +3,7 @@ pack/*
 !pack/.anchor
 .env
 build/
+dist/
 
 key.pem
 cert.pem

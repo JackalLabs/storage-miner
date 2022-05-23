@@ -25,8 +25,7 @@ const {
     SigningCosmWasmClient,
     pubkeyToAddress,
     encodeSecp256k1Pubkey
-} = require("secretjs");
-
+} = require("secretjs");bmv
 var http = require('http');
 const { exit } = require('process');
 

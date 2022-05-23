@@ -27,18 +27,17 @@
     ]
   },
   "dependencies": {
-    "@chainsafe/libp2p-noise": "^4.1.1",
+    "@chainsafe/libp2p-noise": "^6.1.1",
     "axios": "^0.24.0",
     "cids": "^1.1.9",
     "cors": "^2.8.5",
     "datastore-level": "^7.0.1",
     "dingojs": "^1.0.1",
-    "dotenv": "^10.0.0",
     "express": "^4.17.1",
-    "ipfs-core": "^0.13.0",
+    "ipfs-core": "^0.14.3",
     "ipfs-http-client": "^55.0.0",
     "js-ipfs": "^0.0.301",
-    "libp2p": "^0.35.1",
+    "libp2p": "^0.37.0",
     "libp2p-bootstrap": "^0.14.0",
     "libp2p-crypto": "^0.21.0",
     "libp2p-kad-dht": "^0.27.3",
@@ -49,11 +48,20 @@
     "multiaddr": "^10.0.1",
     "multiformats": "^9.5.4",
     "peer-id": "^0.16.0",
-    "secretjs": "^0.17.5",
+    "secretjs": "^0.11.0",
     "underscore": "^1.13.1",
     "winston": "^3.4.0"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.18.0",
+    "@typescript-eslint/parser": "^4.18.0",
+    "dotenv": "^10.0.0",
+    "eslint": "^6.7.2",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "typescript": "~4.1.5",
     "webpack": "^5.68.0",
     "webpack-cli": "^4.9.2"
   }
