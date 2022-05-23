@@ -83,6 +83,10 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
             getTopNodes(secretjs, 20)
             .then((data) => {
                 for (const i of data) {
+                    if(i == process.env.PUBLIC_IP){
+                        continue;
+                    }
+                    console.log(i);
                     axios.get('https://' + i + '/pinipfs?cid=' + v1Cid)
                     .catch((err) => {
                         logger.info("Couldn't reach the external node.");
@@ -217,7 +221,7 @@ function getTopNodes(secretjs, total) {
 
 }
 
-function startEndPoints(ipfs, signingPen) {
+function startEndPoints(ipfs, signingPen, txqueue) {
 
     let args = process.argv;
 
@@ -258,7 +262,27 @@ function startEndPoints(ipfs, signingPen) {
 
     let reward_blocks = {};
 
+    let running = false;
+    setInterval(() => {
+        if(running == false){
+            if(txqueue.length > 0) {
+                running = true;
+                let m = txqueue.shift();
+    
+                secretjs.execute(process.env.CONTRACT, m.msg).then((res) => {
+                    running = false;
+                    delete reward_blocks[m.pkey];
+                    
+                }).catch((err) => {
+                    running = false;
+                });
+            }
+        }
+    }, 500);
+
     app.use(CORS());
+
+    
 
     filecoin.endpoint = process.env.RPC_ENDPOINT;
 
@@ -275,13 +299,12 @@ function startEndPoints(ipfs, signingPen) {
                 path: pkey
             }
         };
-        res.status(200).json({status: 'OK'});
 
-        secretjs.execute(process.env.CONTRACT, msg).then((res) => {
-            delete reward_blocks[pkey];
-            
-        }).catch((err) => {
-        });
+        pushTXN(txqueue, msg, pkey);
+
+        return res.status(200).json({status: 'OK'});
+
+        
     });
 
     app.post('/upload', upload.single('upload_file'), (req, res) => {
@@ -291,7 +314,7 @@ function startEndPoints(ipfs, signingPen) {
     app.get('/pinipfs', (req, res) => {
         pinIPFS(ipfs, req.query.cid);
 
-        return res.sendStatus(200);
+        return res.status(200).json({status: 'OK'});
     });
 
     app.get('/connectIPFS', (req, res) => {
@@ -301,7 +324,7 @@ function startEndPoints(ipfs, signingPen) {
             logger.debug("Couldn't join swarm.");
         });
         
-        return res.sendStatus(200);
+        return res.status(200).json({status: 'OK'});
     });
 
     app.get('/balance', (req, res) => {
@@ -401,6 +424,10 @@ function startEndPoints(ipfs, signingPen) {
 
 }
 
+function pushTXN(queue, msg, pkey) {
+    queue.push({msg: msg, pkey: pkey});
+}
+
 function main() {
 
     if (process.env.NODE_ENV !== 'production') {
@@ -414,10 +441,16 @@ function main() {
 
     const node = IPFS.create({host: "ipfs-jkl", port: "5001"});
 
+    let txnQueue = [];
+
+    
+
     const mnemonic = process.env.MNEMONIC;
     const signingPen = Secp256k1Pen.fromMnemonic(mnemonic).then((signingPen) => {
-        startEndPoints(node, signingPen);
+        startEndPoints(node, signingPen, txnQueue);
     });
+
+
 }
 
 
