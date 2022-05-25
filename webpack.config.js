@@ -12,9 +12,9 @@ fs.readdirSync('node_modules')
     });
 
 module.exports = {
-    // entry: './src/main.js',
+    // entry: './src/main.ts',
     entry: {
-        main: './src/main.js',
+        main: './src/main.ts',
         genesis: './src/genesis.js',
     },
     target: 'node',

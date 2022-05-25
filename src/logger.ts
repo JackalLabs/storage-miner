@@ -1,7 +1,6 @@
-const winston = require('winston');
-const { format } = winston;
+import winston, {format} from "winston";
 
-const myformat = format.combine(
+export const myformat = format.combine(
     format.errors({ stack: true }), 
     format.timestamp({
         format: 'YYYY-MM-DD HH:mm:ss'
@@ -10,14 +9,13 @@ const myformat = format.combine(
     format.printf(info => `[${info.timestamp}] [${info.level}]: ${info.stack == null ? info.message.trim() : info.stack}`)
 );
 
-const logger = winston.createLogger({
+export default winston.createLogger({
     level: 'info',
     format: myformat,
     defaultMeta: {
         service: 'user-service'
     },
     transports: [
-
         new winston.transports.File({
             filename: 'logs/error.log',
             level: 'error'
@@ -27,6 +25,3 @@ const logger = winston.createLogger({
         }),
     ],
 });
-
-module.exports = logger;
-module.exports.myformat = myformat;

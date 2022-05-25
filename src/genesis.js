@@ -1,4 +1,4 @@
-const customFees = require('./fees')
+const customFees = require('./helpers/fees')
 const { logger } = require('./logger')
 
 require('dotenv').config();
