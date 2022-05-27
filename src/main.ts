@@ -10,7 +10,7 @@ import CORS from "cors";
 import Dingo from "dingojs";
 import {Worker} from "worker_threads";
 
-import Logger, {myformat} from "./logger";
+import Logger, {myformat} from "./helpers/logger";
 import RewardBlock from "./interfaces/IRewardBlock";
 import BlockBundle from "./interfaces/IBlockBundle";
 import {checkCache, handleError, harvest} from "./helpers/utils";

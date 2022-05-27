@@ -1,7 +1,7 @@
 import {exec} from 'child_process'
 import * as os from 'os'
 import {Response} from "express";
-import Logger from "../logger";
+import Logger from "./logger";
 
 let ticker = 0
 

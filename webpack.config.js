@@ -15,7 +15,19 @@ module.exports = {
     // entry: './src/main.ts',
     entry: {
         main: './src/main.ts',
-        genesis: './src/genesis.js',
+        genesis: './src/genesis.ts',
+    },
+    module: {
+        rules: [
+            {
+                test: /\.ts$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
+        ],
+    },
+    resolve: {
+        extensions: ['.ts', '.js'],
     },
     target: 'node',
     output: {
