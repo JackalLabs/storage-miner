@@ -15,26 +15,23 @@ import CustomFees from "./helpers/fees";
 import Logger from "./logger";
 import RewardBlock from "./interfaces/IRewardBlock";
 import BlockBundle from "./interfaces/IBlockBundle";
+import {readFileArrayBuffer} from "./helpers/utils";
+import * as os from "os";
 
 // const filecoin = require("dingojs");
 
 config()
-const port = process.env.PORT || 3000;
+const jklNodePort = process.env.PORT || 3000;
 
 const app = Express();
 app.use(CORS());
 
-const filecoin = new Dingo(process.env.RPC_ENDPOINT || '', process.env.AUTH_TOKEN || '');
-const ipfsNode = IPFS.create({host: 'ipfs-jkl', port: 5001});
+const filecoin = new Dingo(process.env.FIL_RPC_ENDPOINT || '', process.env.AUTH_TOKEN || '');
+const ipfsNode = IPFS.create({host: process.env.IPFS_HOST || '', port: 5001});
 const reward_blocks: BlockBundle = {}
 
-// var http = require('http');
-// const { exit } = require('process');
-
 const storage = Multer.diskStorage({
-    destination: function (req, file, callback) {
-        callback(null, Path.join(__dirname, 'uploads'));
-    },
+    destination: os.tmpdir(),
     filename: function (req, file, callback) {
         callback(null, file.originalname);
     }
@@ -191,12 +188,24 @@ app.get('/download', (req, res) => {
 });
 
 app.post('/upload', upload.single('upload_file'), (req, res) => {
+    const miners = ["t01000"]
+    const {file} = req
+
     const block: RewardBlock = {
         address: req.body.address,
         key: req.body.skey
     }
     reward_blocks[req.body.pkey] = block
+// todo put in shit here to get file from upload to ipfs
+    // todo convert to .fields() for Multer
+    // todo figure out miners
+    // todo work out File <> File conversion
 
+    if (file) {
+        readFileArrayBuffer(file as File)
+            .then()
+            .catch()
+    }
 
     return handleUpload(req, res, ipfsNode, secretjs, reward_blocks);
 });
@@ -238,7 +247,11 @@ function harvest (stream: AsyncIterable<Uint8Array>): Promise<Uint8Array[]> {
         }
     })
 }
+function parseFile (file: File) {
+    const reader = readFileArrayBuffer(file)
 
+
+}
 
 
 
@@ -270,7 +283,7 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
             });
         }
 
-        ipfs.add(data)
+        ipfsNode.add(data)
         .then((cid) => {
 
 
@@ -302,65 +315,6 @@ function handleUpload(req, res, ipfs, secretjs, rwb) {
                 Logger.error(err);
             });
             return res.send(jsonRes);
-
-            // filecoin.client.import(f.path)
-            // .then((d) => {
-            //     filecoin.client.dealPieceCID(d.result.Root['/'])
-            //     .then((s) => {
-            //         let CID = s.result.PieceCID['/'];
-            //
-            //         let pad_size = filecoin.utils.calculatePaddedSize(s.result.PayloadSize);
-            //
-            //         let turn = 0;
-            //
-            //
-            //         let jsonRes = {
-            //             cid: cd.toV1().toBaseEncodedString("base32"),
-            //             miners: miners,
-            //             dataId: CID
-            //         };
-            //
-            //         let sDeal = function () {
-            //             filecoin.client.startDeal(d.result.Root['/'], "t3qxiodyvmnwx7yy7gioxdvw5fq5qvw5zw5mr7s5q6w7prtn3fqjf6uszplf2mjxh2anzzkchl4rqvhgysrzua", miners[turn], s.result.PieceCID['/'], pad_size, filecoin.utils.monthsToBlocks(6))
-            //             .then((g) => {
-            //
-            //
-            //                 turn += 1;
-            //
-            //                 if (turn < miners.length) {
-            //                     sDeal();
-            //                 } else {
-            //                     return res.send(jsonRes);
-            //                 }
-            //
-            //             })
-            //             .catch((e) => {
-            //                 Logger.error(e);
-            //                 return res.status(500).send({
-            //                     location: 'filecoin.client.startDeal()',
-            //                     error: e
-            //                 });
-            //             });
-            //         }
-            //         sDeal();
-            //
-            //     })
-            //     .catch((e) => {
-            //         Logger.error(e);
-            //         return res.status(500).send({
-            //             location: 'filecoin.client.dealPieceCID()',
-            //             error: e
-            //         });
-            //     });
-            //
-            // })
-            // .catch((e) => {
-            //     Logger.error(e);
-            //     return res.status(500).send({
-            //         location: 'filecoin.client.import()',
-            //         error: e
-            //     });
-            // });
 
         })
         .catch((err: Error) => {
@@ -613,7 +567,7 @@ function startEndPoints(ipfs, signingPen, txqueue) {
     let httpServer = http.createServer(app);
 
     // httpsServer.listen(8080);
-    httpServer.listen(port, () => {
+    httpServer.listen(jklNodePort, () => {
         let s1 = '    __   ______   ______   __  __   ______   __        ';
         let s2 = '   /\\ \\ /\\  __ \\ /\\  ___\\ /\\ \\/ /  /\\  __ \\ /\\ \\       ';
         let s3 = '  _\\_\\ \\\\ \\  __ \\\\ \\ \\____\\ \\  _"-.\\ \\  __ \\\\ \\ \\____  ';
@@ -622,11 +576,11 @@ function startEndPoints(ipfs, signingPen, txqueue) {
 
         Logger.info("Starting up: \n\t" + s1 + "\n\t" + s2 + "\n\t" + s3 + "\n\t" + s4 + "\n\t" + s5 + "\n.");
 
-        Logger.info(`Now listening at https://localhost:${port}`);
+        Logger.info(`Now listening at https://localhost:${jklNodePort}`);
 
         Logger.info(`Client's Secret address is ${accAddress}`);
 
-        console.log(`running on port: ${port}`)
+        console.log(`running on port: ${jklNodePort}`)
     });
 
 }
