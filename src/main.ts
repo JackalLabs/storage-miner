@@ -2,6 +2,7 @@ import {config} from "dotenv";
 import Express from "express";
 import * as os from "os";
 import Multer from "multer";
+import Fuckery from "multer";
 import Axios from "axios";
 import Winston, {format} from "winston";
 import * as IPFS from "ipfs-http-client";
@@ -11,10 +12,12 @@ import Dingo from "dingojs";
 import {Worker} from "worker_threads";
 
 import Logger, {myformat} from "./helpers/logger";
+import {checkCache, handleError, harvest, processIpfsAdd} from "./helpers/utils";
+import SecretContract from "./helpers/contractFuncs";
+
 import RewardBlock from "./interfaces/IRewardBlock";
 import BlockBundle from "./interfaces/IBlockBundle";
-import {checkCache, handleError, harvest} from "./helpers/utils";
-import SecretContract from "./helpers/contractFuncs";
+import MFile from "@/interfaces/IMFile";
 
 if (process.env.JKL_NODE_ENV !== 'production') {
     Logger.add(new Winston.transports.Console({
@@ -48,9 +51,6 @@ const storage = Multer.diskStorage({
 const upload = Multer({
     storage: storage
 });
-
-//prev secretjs
-
 
 app.get('/', (req, res) => {
     return res.status(200).json({
@@ -179,53 +179,56 @@ app.get('/download', (req, res) => {
     }
 });
 
-app.post('/upload', upload.single('upload_file'), (req, res) => {
+app.post('/upload', upload.array('files'), async (req, res) => {
+    // todo figure out miners
     const miners = ["t01000"]
-    const {file} = req
+    const {files} = req
+    const {address, pkey, skey} = req.body
 
     const block: RewardBlock = {
-        address: req.body.address,
-        key: req.body.skey
+        address,
+        key: skey
     }
-    reward_blocks[req.body.pkey] = block
-    // todo convert to .fields() for Multer
-    // todo figure out miners
-    if (file?.buffer) {
-        ipfsNode.add(file.buffer)
-            .then(rawCid => {
-                const v1Cid = new CIDs(rawCid.path).toV1().toBaseEncodedString("base32")
-                const jsonRes = {
-                    cid: v1Cid,
-                    miners: miners,
-                    dataId: "empty",
-                    node: process.env.JKL_NODE_PUBLIC_ADDRESS
-                }
+    reward_blocks[pkey] = block
 
-                scrt.topNodes(20)
-                    .then(nodes => {
-                        nodes.forEach(node => {
-                            if (node === process.env.JKL_NODE_PUBLIC_ADDRESS) {
-                                return true
-                            } else {
-                                Axios.get(`https://${node}/pinipfs?cid=${v1Cid}`)
-                                    .then(resp => {
-                                        Logger.info(`${node} response: ${resp.data.jcode}`)
-                                    })
-                                    .catch((err) => {
-                                        handleError(`Couldn't reach ${node}`, err)
-                                    })
-                            }
-                        })
-                        return res.send(jsonRes);
-                    })
-                    .catch(err => {
-                        handleError('topNodes() aborted', err, 5152, res)
-                    })
-            })
-            .catch(err => {
-                handleError('IFPS Failure', err, 5151, res)
-            })
+    if (files?.length) {
+        const arrayed: MFile[] = Object.values(files)
+
+        const processed = Promise.all(arrayed.map((file: MFile) => {
+            return processIpfsAdd(ipfsNode, scrt, file)
+        }))
+        const name = `ref.${arrayed[0].originalname}`
+        const contents = JSON.stringify({
+            node: process.env.JKL_NODE_PUBLIC_ADDRESS,
+            parts: processed
+        })
+        const shellFile = new File([contents], name, { type: 'text/plain' })
+
+        const {cid, dataId} = await processIpfsAdd(ipfsNode, scrt, shellFile)
+
+        const jsonRes = {
+            sent: {
+                address,
+                pkey,
+                skey
+            },
+            cid,
+            miners: miners,
+            dataId,
+            node: process.env.JKL_NODE_PUBLIC_ADDRESS
+        }
+
+        res.status(200).json({
+            data: jsonRes,
+            jcode: 2000
+        })
+    } else {
+        res.status(404).json({
+            jcode: 4410,
+            message: "No Files Received"
+        });
     }
+
     checkCache()
 });
 

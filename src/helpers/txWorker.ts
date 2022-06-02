@@ -7,10 +7,6 @@ import RewardBlock from "../interfaces/IRewardBlock";
 
 const scrt = new SecretContract()
 
-export default (function() {
-
-})()
-
 if (parentPort) {
     const parent = parentPort
 

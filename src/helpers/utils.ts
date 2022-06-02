@@ -2,6 +2,12 @@ import {exec} from 'child_process'
 import * as os from 'os'
 import {Response} from "express";
 import Logger from "./logger";
+import MFile from "@/interfaces/IMFile";
+import CIDs from "cids";
+import Axios from "axios";
+import {IPFSHTTPClient} from "ipfs-http-client";
+import SecretContract from "@/helpers/contractFuncs";
+import ProcessIpfsAddResult from "@/interfaces/IProcessIpfsAddResult";
 
 let ticker = 0
 
@@ -52,6 +58,30 @@ export function checkCache () {
             .catch(err => console.error(err))
         ticker = 0
     }
+}
+
+export function processIpfsAdd (ipfsNode: IPFSHTTPClient, scrt: SecretContract, file: MFile | File): Promise<ProcessIpfsAddResult> {
+    return ipfsNode.add(file)
+        .then(rawCid => new CIDs(rawCid.path).toV1().toBaseEncodedString("base32"))
+        .then(cid => {
+            scrt.topNodes(20)
+                .then(nodes => {
+                    nodes.forEach(node => {
+                        if (node === process.env.JKL_NODE_PUBLIC_ADDRESS) {
+                            return true
+                        } else {
+                            Axios.get(`https://${node}/pinipfs?cid=${cid}`)
+                                .then(resp => {
+                                    Logger.info(`${node} response: ${resp.data.jcode}`)
+                                })
+                                .catch((err) => {
+                                    handleError(`Couldn't reach ${node}`, err)
+                                })
+                        }
+                    })
+                })
+            return {cid, dataId: 'tbd'}
+        })
 }
 
 // internals
