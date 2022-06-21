@@ -213,7 +213,7 @@ app.post('/upload', upload.array('files'), async (req, res) => {
                 skey
             },
             cid,
-            miners: miners,
+            miners,
             dataId,
             node: process.env.JKL_NODE_PUBLIC_ADDRESS
         }
