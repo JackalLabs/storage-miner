@@ -1,22 +1,37 @@
 {
-  "name": "jkl_client",
+  "name": "storage-miner",
   "version": "1.0.0",
-  "description": "The Jackal Client",
+  "description": "The Jackal Storage Miner",
+  "private": true,
   "scripts": {
     "start": "node src/main.js",
     "genesis": "node src/genesis.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "contributors": [
+    {
+      "name" : "Jackal Labs",
+      "email" : "devadmin@jackallabs.io",
+      "url" : "https://jackallabs.io"
+    },
+    {
+      "name" : "Marston Connell",
+      "email" : "marston@jackallabs.io"
+    },
+    {
+      "name" : "Erin Rivas",
+      "email" : "erin@jackallabs.io"
+    }
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JACKAL-DAO/JACKAL-Client.git"
+    "url": "git+https://github.com/JackalLabs/storage-miner.git"
   },
-  "author": "Marston Connell",
-  "license": "SEE LICENSE IN LICENSE",
   "bugs": {
-    "url": "https://github.com/JACKAL-DAO/JACKAL-Client/issues"
+    "url": "https://github.com/JackalLabs/storage-miner/issues"
   },
-  "homepage": "https://github.com/JACKAL-DAO/JACKAL-Client#readme",
+  "homepage": "https://github.com/JackalLabs/storage-miner/#readme",
   "pkg": {
     "assets": [
       "src/*",
